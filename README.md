@@ -156,19 +156,27 @@ work fine without it.
 ## Missing experiences (gap review)
 
 Each `missing_requirements` item from a job check gets a checkbox next to
-it. Select the ones you actually have real experience with (the model
-doesn't know that — it's only judging from what's already in your CV) and
-click "Add selected to CV gaps" to save them, tagged with which job
-surfaced them. They don't touch your CV automatically.
+it. Select the ones that seem worth resolving (the model doesn't know
+whether you actually have them — it's only judging from what's already in
+your CV) and click "Add selected to CV gaps" to save them, tagged with
+which job surfaced them. They don't touch your CV automatically.
 
 On the Upload CV page, a "Missing experiences" section lists everything
-pending: for each one, pick an existing tool category (or type a new one)
-and click "Add to CV" to insert it as a tool/skill in that category, or
-"Dismiss" to discard it without adding anything. Adding one only updates
-the in-page form — like any other edit, it's not persisted until you hit
-"Save changes". The CV you last imported or saved is remembered across
-page visits (`localStorage`), so the Job Search and Upload CV pages stay
-in sync on the same CV without re-uploading.
+pending. For each one there are exactly two paths:
+
+1. **"I have it — add to CV"**: an editable text box, pre-filled with the
+   raw gap phrase, lets you describe it in your own words (with real
+   detail — dates, scale, tools used) before picking a tool category (or
+   typing a new one) and adding it. The raw model-generated phrase is
+   never inserted verbatim; what you actually write is what gets added.
+2. **"Don't have it — track to learn"**: moves the item to the separate
+   [Skills to Learn](#skills-to-learn) page instead of your CV.
+
+Either way it only updates the in-page form — like any other edit, it's
+not persisted until you hit "Save changes". The CV you last imported or
+saved is remembered across page visits (`localStorage`), so the Job
+Search and Upload CV pages stay in sync on the same CV without
+re-uploading.
 
 ### API
 
@@ -176,6 +184,30 @@ in sync on the same CV without re-uploading.
   Returns `{gaps: [{id, cv_id, text, source, created_at}, ...]}`. 404 if
   the CV doesn't exist; 400 if `items` is empty after trimming blanks.
 - `GET /api/cv/{id}/gaps` — list pending gaps for a CV.
-- `DELETE /api/cv/{id}/gaps/{gap_id}` — remove a gap (used both to dismiss
-  it and, after it's been copied into the form, to clear it from the
-  pending list). 404 if it doesn't exist.
+- `DELETE /api/cv/{id}/gaps/{gap_id}` — remove a gap (used once it's been
+  resolved via either path above, to clear it from the pending list). 404
+  if it doesn't exist.
+
+## Skills to Learn
+
+A standalone page (`frontend/learning.html`) for everything you flagged as
+"don't have it yet" instead of adding to your CV. It's not just a wishlist
+— the same skill getting flagged again from a different job (an identical
+gap, matched case/whitespace-insensitively) bumps an occurrence count
+instead of creating a duplicate row, so recurring gaps float to the top
+and are the ones worth actually prioritizing. Each item shows how many
+times it's been seen and when it was first/last flagged. "Learned it —
+add to CV" promotes an item straight into a tool category on your CV (and
+removes it from the learning list); "Remove" just drops it.
+
+### API
+
+- `POST /api/cv/{id}/learning` — JSON body `{text: string}`. Adds a new
+  item, or bumps `occurrences` on an existing one (case/whitespace-
+  insensitive match) and updates `last_flagged_at`. Returns
+  `{id, cv_id, text, occurrences, first_flagged_at, last_flagged_at}`.
+  404 if the CV doesn't exist; 400 if `text` is empty after trimming.
+- `GET /api/cv/{id}/learning` — list items for a CV, ordered by
+  `occurrences` desc then `last_flagged_at` desc.
+- `DELETE /api/cv/{id}/learning/{item_id}` — remove an item. 404 if it
+  doesn't exist.

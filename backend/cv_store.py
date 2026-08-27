@@ -41,6 +41,19 @@ def _connect() -> sqlite3.Connection:
         )
         """
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS cv_learning (
+            id TEXT PRIMARY KEY,
+            cv_id TEXT NOT NULL,
+            text TEXT NOT NULL,
+            text_key TEXT NOT NULL,
+            occurrences INTEGER NOT NULL DEFAULT 1,
+            first_flagged_at TEXT NOT NULL,
+            last_flagged_at TEXT NOT NULL
+        )
+        """
+    )
     return conn
 
 
@@ -153,6 +166,82 @@ def delete_gap(cv_id: str, gap_id: str) -> bool:
     conn = _connect()
     try:
         cur = conn.execute("DELETE FROM cv_gaps WHERE id = ? AND cv_id = ?", (gap_id, cv_id))
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def add_or_bump_learning_item(cv_id: str, text: str) -> dict:
+    """Add a new "skill to learn" item, or — if the same text (case/space
+    insensitive) is already tracked for this CV — bump its occurrence
+    count instead of creating a duplicate, so recurring gaps are visible."""
+    now = datetime.now(timezone.utc).isoformat()
+    text_key = " ".join(text.lower().split())
+    conn = _connect()
+    try:
+        row = conn.execute(
+            "SELECT id, occurrences FROM cv_learning WHERE cv_id = ? AND text_key = ?",
+            (cv_id, text_key),
+        ).fetchone()
+        if row is not None:
+            item_id, occurrences = row
+            conn.execute(
+                "UPDATE cv_learning SET occurrences = ?, last_flagged_at = ? WHERE id = ?",
+                (occurrences + 1, now, item_id),
+            )
+            conn.commit()
+        else:
+            item_id = str(uuid.uuid4())
+            conn.execute(
+                "INSERT INTO cv_learning (id, cv_id, text, text_key, occurrences, first_flagged_at, last_flagged_at) "
+                "VALUES (?, ?, ?, ?, 1, ?, ?)",
+                (item_id, cv_id, text, text_key, now, now),
+            )
+            conn.commit()
+        result = conn.execute(
+            "SELECT id, cv_id, text, occurrences, first_flagged_at, last_flagged_at FROM cv_learning WHERE id = ?",
+            (item_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+    return {
+        "id": result[0],
+        "cv_id": result[1],
+        "text": result[2],
+        "occurrences": result[3],
+        "first_flagged_at": result[4],
+        "last_flagged_at": result[5],
+    }
+
+
+def list_learning(cv_id: str) -> list[dict]:
+    conn = _connect()
+    try:
+        rows = conn.execute(
+            "SELECT id, cv_id, text, occurrences, first_flagged_at, last_flagged_at FROM cv_learning "
+            "WHERE cv_id = ? ORDER BY occurrences DESC, last_flagged_at DESC",
+            (cv_id,),
+        ).fetchall()
+    finally:
+        conn.close()
+    return [
+        {
+            "id": r[0],
+            "cv_id": r[1],
+            "text": r[2],
+            "occurrences": r[3],
+            "first_flagged_at": r[4],
+            "last_flagged_at": r[5],
+        }
+        for r in rows
+    ]
+
+
+def delete_learning_item(cv_id: str, item_id: str) -> bool:
+    conn = _connect()
+    try:
+        cur = conn.execute("DELETE FROM cv_learning WHERE id = ? AND cv_id = ?", (item_id, cv_id))
         conn.commit()
         return cur.rowcount > 0
     finally:

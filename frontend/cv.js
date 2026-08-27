@@ -448,6 +448,17 @@ function renderGapsList(gaps) {
     text.textContent = gap.source ? `${gap.text} (from "${gap.source}")` : gap.text;
     row.appendChild(text);
 
+    const haveLabel = document.createElement("p");
+    haveLabel.className = "hint";
+    haveLabel.textContent = "I have this — describe it in your own words:";
+    row.appendChild(haveLabel);
+
+    const editInput = document.createElement("input");
+    editInput.type = "text";
+    editInput.className = "gap-edit-input";
+    editInput.value = gap.text;
+    row.appendChild(editInput);
+
     const controls = document.createElement("div");
     controls.className = "gap-controls";
 
@@ -468,16 +479,16 @@ function renderGapsList(gaps) {
     const addBtn = document.createElement("button");
     addBtn.type = "button";
     addBtn.className = "add-entry-btn";
-    addBtn.textContent = "Add to CV";
-    addBtn.addEventListener("click", () => addGapToCv(gap, select, row));
+    addBtn.textContent = "I have it — add to CV";
+    addBtn.addEventListener("click", () => addGapToCv(gap, editInput, select, row));
     controls.appendChild(addBtn);
 
-    const dismissBtn = document.createElement("button");
-    dismissBtn.type = "button";
-    dismissBtn.className = "remove-entry";
-    dismissBtn.textContent = "Dismiss";
-    dismissBtn.addEventListener("click", () => dismissGap(gap.id, row));
-    controls.appendChild(dismissBtn);
+    const learnBtn = document.createElement("button");
+    learnBtn.type = "button";
+    learnBtn.className = "remove-entry";
+    learnBtn.textContent = "Don't have it — track to learn";
+    learnBtn.addEventListener("click", () => sendGapToLearning(gap, row));
+    controls.appendChild(learnBtn);
 
     row.appendChild(controls);
     gapsListEl.appendChild(row);
@@ -485,7 +496,13 @@ function renderGapsList(gaps) {
   gapsSectionEl.hidden = gaps.length === 0;
 }
 
-async function addGapToCv(gap, select, row) {
+async function addGapToCv(gap, editInput, select, row) {
+  const text = editInput.value.trim();
+  if (!text) {
+    editInput.focus();
+    return;
+  }
+
   let category = select.value;
   if (category === "__new__" || !category) {
     category = window.prompt("New tool category name:", "");
@@ -497,13 +514,27 @@ async function addGapToCv(gap, select, row) {
     targetBlock = makeToolCategoryBlock(category, []);
     toolsContainerEl.appendChild(targetBlock);
   }
-  targetBlock.querySelector(".tool-items-list").appendChild(makeToolItem({ name: gap.text, level: null }));
+  targetBlock.querySelector(".tool-items-list").appendChild(makeToolItem({ name: text, level: null }));
 
-  await dismissGap(gap.id, row);
+  await removeGap(gap.id, row);
   saveStatusEl.textContent = 'Added to Tools below — click "Save changes" to keep it.';
 }
 
-async function dismissGap(gapId, row) {
+async function sendGapToLearning(gap, row) {
+  try {
+    await fetch(`${API_BASE}/api/cv/${currentCvId}/learning`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: gap.text }),
+    });
+  } catch {
+    // best-effort — still remove the gap from the pending list below
+  }
+  await removeGap(gap.id, row);
+  saveStatusEl.textContent = 'Added to your "Skills to Learn" list.';
+}
+
+async function removeGap(gapId, row) {
   try {
     await fetch(`${API_BASE}/api/cv/${currentCvId}/gaps/${gapId}`, { method: "DELETE" });
   } catch {

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CV Maker - Skills to Learn</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="container">
+    <nav class="top-nav">
+      <a href="index.html">Job Search</a>
+      <a href="cv.html">Upload CV</a>
+      <a href="learning.html" class="active">Skills to Learn</a>
+    </nav>
+    <h1>Skills to Learn</h1>
+    <p class="hint">
+      Things you don't have yet, flagged while checking job matches. The
+      "seen" count goes up each time the same gap turns up again from a
+      different job — a good signal for what's worth prioritizing.
+    </p>
+
+    <div class="score-bar" id="learning-cv-bar">
+      <span>CV:</span>
+      <select id="learning-cv-select"></select>
+    </div>
+    <p id="learning-status" class="hint"></p>
+
+    <ul id="learning-list"></ul>
+  </main>
+  <script src="learning.js"></script>
+</body>
+</html>

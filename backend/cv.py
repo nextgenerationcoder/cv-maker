@@ -27,6 +27,10 @@ class AddGapsRequest(BaseModel):
     source: Optional[str] = None
 
 
+class AddLearningItemRequest(BaseModel):
+    text: str
+
+
 @router.get("/template.json")
 def download_template():
     return PlainTextResponse(
@@ -114,6 +118,30 @@ def list_gaps(cv_id: str):
 def delete_gap(cv_id: str, gap_id: str):
     if not cv_store.delete_gap(cv_id, gap_id):
         raise HTTPException(status_code=404, detail="Gap not found.")
+    return {"status": "deleted"}
+
+
+@router.post("/{cv_id}/learning")
+def add_learning_item(cv_id: str, body: AddLearningItemRequest):
+    if cv_store.fetch_cv(cv_id) is None:
+        raise HTTPException(status_code=404, detail="CV not found.")
+    text = body.text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Text is required.")
+    return cv_store.add_or_bump_learning_item(cv_id, text)
+
+
+@router.get("/{cv_id}/learning")
+def list_learning(cv_id: str):
+    if cv_store.fetch_cv(cv_id) is None:
+        raise HTTPException(status_code=404, detail="CV not found.")
+    return {"items": cv_store.list_learning(cv_id)}
+
+
+@router.delete("/{cv_id}/learning/{item_id}")
+def delete_learning_item(cv_id: str, item_id: str):
+    if not cv_store.delete_learning_item(cv_id, item_id):
+        raise HTTPException(status_code=404, detail="Learning item not found.")
     return {"status": "deleted"}
 
 

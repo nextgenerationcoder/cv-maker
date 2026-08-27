@@ -462,3 +462,18 @@ body {
   padding: 0.35rem 0.5rem;
   font-size: 0.85rem;
 }
+
+.gap-edit-input {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+
+#learning-cv-bar {
+  margin-top: 1rem;
+}
