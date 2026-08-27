@@ -7,107 +7,298 @@ const API_BASE = window.API_BASE || "";
 const uploadForm = document.getElementById("cv-upload-form");
 const fileInput = document.getElementById("cv-file");
 const statusEl = document.getElementById("cv-status");
-const warningsEl = document.getElementById("cv-warnings");
 const downloadTemplateLink = document.getElementById("download-template-link");
 
 const editForm = document.getElementById("cv-edit-form");
 const saveStatusEl = document.getElementById("save-status");
-const exportCsvLink = document.getElementById("export-csv-link");
+const exportJsonLink = document.getElementById("export-json-link");
 const workEntriesEl = document.getElementById("work-entries");
 const educationEntriesEl = document.getElementById("education-entries");
+const trainingEntriesEl = document.getElementById("training-entries");
 const languageEntriesEl = document.getElementById("language-entries");
+const toolsContainerEl = document.getElementById("tools-container");
 
 let currentCvId = null;
 
-downloadTemplateLink.href = `${API_BASE}/api/cv/template.csv`;
+downloadTemplateLink.href = `${API_BASE}/api/cv/template.json`;
 
-const WORK_FIELDS = [
-  { key: "title", label: "Title", required: true },
-  { key: "company", label: "Company", required: true },
-  { key: "start_date", label: "Start date" },
-  { key: "end_date", label: "End date" },
-  { key: "location", label: "Location" },
-  { key: "responsibilities", label: "Responsibilities (one per line)", type: "textarea", list: true },
-];
+// ---------- generic helpers ----------
 
-const EDUCATION_FIELDS = [
-  { key: "institution", label: "Institution", required: true },
-  { key: "degree", label: "Degree" },
-  { key: "field_of_study", label: "Field of study" },
-  { key: "start_date", label: "Start date" },
-  { key: "end_date", label: "End date" },
-  { key: "details", label: "Details", type: "textarea" },
-];
+function splitCommaList(value) {
+  return value
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 
-const LANGUAGE_FIELDS = [
-  { key: "name", label: "Language", required: true },
-  { key: "proficiency", label: "Proficiency" },
-];
+function addField(card, key, label, value, type = "text") {
+  const wrap = document.createElement("label");
+  wrap.className = "field";
+  const span = document.createElement("span");
+  span.textContent = label;
+  wrap.appendChild(span);
+  const input = document.createElement(type === "textarea" ? "textarea" : "input");
+  if (type !== "textarea") input.type = "text";
+  input.dataset.key = key;
+  input.value = value || "";
+  wrap.appendChild(input);
+  card.appendChild(wrap);
+  return input;
+}
 
-function makeEntryCard(fieldsSpec, values) {
+function readField(card, key) {
+  const el = card.querySelector(`[data-key="${key}"]`);
+  return el.value.trim();
+}
+
+function addRemoveButton(el, label = "Remove") {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "remove-entry";
+  btn.textContent = label;
+  btn.addEventListener("click", () => el.remove());
+  el.appendChild(btn);
+  return btn;
+}
+
+// ---------- experience bullets (nested inside work/education/training) ----------
+
+function makeExperienceItem(values) {
+  const div = document.createElement("div");
+  div.className = "experience-item";
+
+  const bullet = document.createElement("textarea");
+  bullet.className = "exp-bullet";
+  bullet.rows = 2;
+  bullet.placeholder = "Bullet point";
+  bullet.value = values?.bullet || "";
+  div.appendChild(bullet);
+
+  const skills = document.createElement("input");
+  skills.type = "text";
+  skills.className = "exp-skills";
+  skills.placeholder = "Skills (comma-separated)";
+  skills.value = (values?.skills || []).join(", ");
+  div.appendChild(skills);
+
+  const metrics = document.createElement("input");
+  metrics.type = "text";
+  metrics.className = "exp-metrics";
+  metrics.placeholder = "Metrics (comma-separated)";
+  metrics.value = (values?.metrics || []).join(", ");
+  div.appendChild(metrics);
+
+  addRemoveButton(div, "Remove bullet");
+  return div;
+}
+
+function renderExperiences(container, experiences) {
+  container.innerHTML = "";
+  for (const values of experiences || []) {
+    container.appendChild(makeExperienceItem(values));
+  }
+}
+
+function readExperiences(container) {
+  return Array.from(container.querySelectorAll(".experience-item")).map((div) => ({
+    bullet: div.querySelector(".exp-bullet").value.trim(),
+    skills: splitCommaList(div.querySelector(".exp-skills").value),
+    metrics: splitCommaList(div.querySelector(".exp-metrics").value),
+  }));
+}
+
+function appendExperienceSection(card) {
+  const heading = document.createElement("h4");
+  heading.textContent = "Experience bullets";
+  card.appendChild(heading);
+
+  const list = document.createElement("div");
+  list.className = "experiences-list";
+  card.appendChild(list);
+
+  const addBtn = document.createElement("button");
+  addBtn.type = "button";
+  addBtn.className = "add-entry-btn add-exp-btn";
+  addBtn.textContent = "+ Add bullet";
+  addBtn.addEventListener("click", () => list.appendChild(makeExperienceItem({})));
+  card.appendChild(addBtn);
+
+  return list;
+}
+
+// ---------- work / education / training cards ----------
+
+function makeWorkCard(values) {
   const card = document.createElement("div");
   card.className = "entry-card";
-  for (const f of fieldsSpec) {
-    const label = document.createElement("label");
-    label.className = "field";
-    const span = document.createElement("span");
-    span.textContent = f.label;
-    label.appendChild(span);
-
-    const input = document.createElement(f.type === "textarea" ? "textarea" : "input");
-    if (f.type !== "textarea") input.type = "text";
-    const raw = values ? values[f.key] : undefined;
-    input.value = f.list ? (raw || []).join("\n") : raw || "";
-    input.dataset.key = f.key;
-    label.appendChild(input);
-    card.appendChild(label);
-  }
-
-  const removeBtn = document.createElement("button");
-  removeBtn.type = "button";
-  removeBtn.className = "remove-entry";
-  removeBtn.textContent = "Remove";
-  removeBtn.addEventListener("click", () => card.remove());
-  card.appendChild(removeBtn);
-
+  addField(card, "company", "Company", values?.company);
+  addField(card, "role", "Role", values?.role);
+  addField(card, "period", "Period", values?.period);
+  addField(card, "location", "Location", values?.location);
+  const expList = appendExperienceSection(card);
+  renderExperiences(expList, values?.experiences);
+  addRemoveButton(card);
   return card;
 }
 
-function renderEntrySection(container, fieldsSpec, entries) {
+function readWorkCard(card) {
+  return {
+    company: readField(card, "company"),
+    role: readField(card, "role"),
+    period: readField(card, "period"),
+    location: readField(card, "location") || null,
+    experiences: readExperiences(card.querySelector(".experiences-list")),
+  };
+}
+
+function makeEducationCard(values) {
+  const card = document.createElement("div");
+  card.className = "entry-card";
+  addField(card, "institution", "Institution", values?.institution);
+  addField(card, "program", "Program", values?.program);
+  addField(card, "degree", "Degree", values?.degree);
+  addField(card, "period", "Period", values?.period);
+  addField(card, "location", "Location", values?.location);
+  const expList = appendExperienceSection(card);
+  renderExperiences(expList, values?.experiences);
+  addRemoveButton(card);
+  return card;
+}
+
+function readEducationCard(card) {
+  return {
+    institution: readField(card, "institution"),
+    program: readField(card, "program"),
+    degree: readField(card, "degree") || null,
+    period: readField(card, "period"),
+    location: readField(card, "location") || null,
+    experiences: readExperiences(card.querySelector(".experiences-list")),
+  };
+}
+
+function makeTrainingCard(values) {
+  const card = document.createElement("div");
+  card.className = "entry-card";
+  addField(card, "title", "Title", values?.title);
+  addField(card, "period", "Period", values?.period);
+  addField(card, "duration", "Duration", values?.duration);
+  const expList = appendExperienceSection(card);
+  renderExperiences(expList, values?.experiences);
+  addRemoveButton(card);
+  return card;
+}
+
+function readTrainingCard(card) {
+  return {
+    title: readField(card, "title"),
+    period: readField(card, "period"),
+    duration: readField(card, "duration") || null,
+    experiences: readExperiences(card.querySelector(".experiences-list")),
+  };
+}
+
+function renderCards(container, makeCard, entries) {
   container.innerHTML = "";
   for (const values of entries || []) {
-    container.appendChild(makeEntryCard(fieldsSpec, values));
+    container.appendChild(makeCard(values));
   }
 }
 
-function readEntrySection(container, fieldsSpec) {
-  return Array.from(container.querySelectorAll(".entry-card")).map((card) => {
-    const obj = {};
-    for (const f of fieldsSpec) {
-      const input = card.querySelector(`[data-key="${f.key}"]`);
-      const value = input.value;
-      if (f.list) {
-        obj[f.key] = value
-          .split("\n")
-          .map((s) => s.trim())
-          .filter(Boolean);
-      } else {
-        const trimmed = value.trim();
-        obj[f.key] = trimmed || (f.required ? "" : null);
-      }
-    }
-    return obj;
-  });
+function readCards(container, readCard) {
+  return Array.from(container.querySelectorAll(":scope > .entry-card")).map(readCard);
 }
+
+// ---------- languages ----------
+
+function makeLanguageCard(values) {
+  const card = document.createElement("div");
+  card.className = "entry-card";
+  addField(card, "language", "Language", values?.language);
+  addField(card, "level", "Level", values?.level);
+  addRemoveButton(card);
+  return card;
+}
+
+function readLanguageCard(card) {
+  return {
+    language: readField(card, "language"),
+    level: readField(card, "level"),
+  };
+}
+
+// ---------- tools (dynamic categories) ----------
+
+function makeToolItem(values) {
+  const row = document.createElement("div");
+  row.className = "tool-item";
+
+  const name = document.createElement("input");
+  name.type = "text";
+  name.className = "tool-name";
+  name.placeholder = "Tool/skill name";
+  name.value = values?.name || "";
+  row.appendChild(name);
+
+  const level = document.createElement("input");
+  level.type = "text";
+  level.className = "tool-level";
+  level.placeholder = "Level (optional)";
+  level.value = values?.level || "";
+  row.appendChild(level);
+
+  addRemoveButton(row, "✕");
+  return row;
+}
+
+function makeToolCategoryBlock(categoryName, items) {
+  const block = document.createElement("div");
+  block.className = "entry-card tool-category";
+
+  addField(block, "category-name", "Category name (e.g. ai_automation)", categoryName);
+
+  const itemsList = document.createElement("div");
+  itemsList.className = "tool-items-list";
+  for (const item of items || []) itemsList.appendChild(makeToolItem(item));
+  block.appendChild(itemsList);
+
+  const addItemBtn = document.createElement("button");
+  addItemBtn.type = "button";
+  addItemBtn.className = "add-entry-btn";
+  addItemBtn.textContent = "+ Add tool";
+  addItemBtn.addEventListener("click", () => itemsList.appendChild(makeToolItem({})));
+  block.appendChild(addItemBtn);
+
+  addRemoveButton(block, "Remove category");
+  return block;
+}
+
+function renderTools(tools) {
+  toolsContainerEl.innerHTML = "";
+  for (const [category, items] of Object.entries(tools || {})) {
+    toolsContainerEl.appendChild(makeToolCategoryBlock(category, items));
+  }
+}
+
+function readTools() {
+  const tools = {};
+  for (const block of toolsContainerEl.querySelectorAll(":scope > .tool-category")) {
+    const name = readField(block, "category-name");
+    if (!name) continue;
+    const items = Array.from(block.querySelectorAll(".tool-item"))
+      .map((row) => ({
+        name: row.querySelector(".tool-name").value.trim(),
+        level: row.querySelector(".tool-level").value.trim() || null,
+      }))
+      .filter((item) => item.name);
+    tools[name] = items;
+  }
+  return tools;
+}
+
+// ---------- top-level form load/read ----------
 
 function fillTextField(dataField, value) {
-  const el = editForm.querySelector(`[data-field="${dataField}"]`);
-  el.value = value || "";
-}
-
-function fillListField(dataField, values) {
-  const el = editForm.querySelector(`[data-field="${dataField}"]`);
-  el.value = (values || []).join("\n");
+  editForm.querySelector(`[data-field="${dataField}"]`).value = value || "";
 }
 
 function readTextField(dataField) {
@@ -115,75 +306,73 @@ function readTextField(dataField) {
   return el.value.trim() || null;
 }
 
-function readListField(dataField) {
-  const el = editForm.querySelector(`[data-field="${dataField}"]`);
-  return el.value
-    .split("\n")
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
 function loadProfileIntoForm(filename, profile) {
   fillTextField("filename", filename);
-  const contact = profile.contact || {};
-  fillTextField("contact.name", contact.name);
-  fillTextField("contact.email", contact.email);
-  fillTextField("contact.phone", contact.phone);
-  fillTextField("contact.location", contact.location);
-  fillTextField("contact.linkedin", contact.linkedin);
-  fillTextField("contact.website", contact.website);
-  fillTextField("summary", profile.summary);
-  fillListField("preferred_roles", profile.preferred_roles);
-  fillListField("skills", profile.skills);
-  fillListField("technical_knowledge", profile.technical_knowledge);
-  fillListField("certifications", profile.certifications);
+  const personal = profile.personal_information || {};
+  fillTextField("personal.name", personal.name);
+  fillTextField("personal.email", personal.email);
+  fillTextField("personal.phone", personal.phone);
+  fillTextField("personal.location", personal.location);
 
-  renderEntrySection(workEntriesEl, WORK_FIELDS, profile.work_experience);
-  renderEntrySection(educationEntriesEl, EDUCATION_FIELDS, profile.education);
-  renderEntrySection(languageEntriesEl, LANGUAGE_FIELDS, profile.languages);
+  renderCards(workEntriesEl, makeWorkCard, profile.work_experience);
+  renderCards(educationEntriesEl, makeEducationCard, profile.education);
+  renderCards(trainingEntriesEl, makeTrainingCard, profile.training_and_projects);
+  renderCards(languageEntriesEl, makeLanguageCard, profile.languages);
+  renderTools(profile.tools);
 
   editForm.hidden = false;
 }
 
 function buildProfileFromForm() {
   return {
-    contact: {
-      name: readTextField("contact.name"),
-      email: readTextField("contact.email"),
-      phone: readTextField("contact.phone"),
-      location: readTextField("contact.location"),
-      linkedin: readTextField("contact.linkedin"),
-      website: readTextField("contact.website"),
+    personal_information: {
+      name: readTextField("personal.name") || "",
+      email: readTextField("personal.email") || "",
+      phone: readTextField("personal.phone") || "",
+      location: readTextField("personal.location"),
     },
-    summary: readTextField("summary"),
-    preferred_roles: readListField("preferred_roles"),
-    skills: readListField("skills"),
-    technical_knowledge: readListField("technical_knowledge"),
-    certifications: readListField("certifications"),
-    work_experience: readEntrySection(workEntriesEl, WORK_FIELDS),
-    education: readEntrySection(educationEntriesEl, EDUCATION_FIELDS),
-    languages: readEntrySection(languageEntriesEl, LANGUAGE_FIELDS),
+    work_experience: readCards(workEntriesEl, readWorkCard),
+    education: readCards(educationEntriesEl, readEducationCard),
+    training_and_projects: readCards(trainingEntriesEl, readTrainingCard),
+    languages: readCards(languageEntriesEl, readLanguageCard),
+    tools: readTools(),
   };
 }
+
+// ---------- events ----------
+
+document.getElementById("add-work-btn").addEventListener("click", () => {
+  workEntriesEl.appendChild(makeWorkCard({}));
+});
+document.getElementById("add-education-btn").addEventListener("click", () => {
+  educationEntriesEl.appendChild(makeEducationCard({}));
+});
+document.getElementById("add-training-btn").addEventListener("click", () => {
+  trainingEntriesEl.appendChild(makeTrainingCard({}));
+});
+document.getElementById("add-language-btn").addEventListener("click", () => {
+  languageEntriesEl.appendChild(makeLanguageCard({}));
+});
+document.getElementById("add-tool-category-btn").addEventListener("click", () => {
+  toolsContainerEl.appendChild(makeToolCategoryBlock("", []));
+});
 
 uploadForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const file = fileInput.files[0];
   if (!file) {
-    statusEl.textContent = "Choose a CSV file first.";
+    statusEl.textContent = "Choose a JSON file first.";
     return;
   }
 
   statusEl.textContent = "Importing…";
-  warningsEl.hidden = true;
-  warningsEl.innerHTML = "";
   editForm.hidden = true;
 
   const formData = new FormData();
   formData.append("file", file);
 
   try {
-    const response = await fetch(`${API_BASE}/api/cv/import-csv`, { method: "POST", body: formData });
+    const response = await fetch(`${API_BASE}/api/cv/import-json`, { method: "POST", body: formData });
     if (!response.ok) {
       const errorBody = await response.json().catch(() => ({}));
       throw new Error(errorBody.detail || `Request failed with ${response.status}`);
@@ -191,35 +380,18 @@ uploadForm.addEventListener("submit", async (event) => {
     const data = await response.json();
     currentCvId = data.id;
     statusEl.textContent = `Imported ${data.filename}. Review and edit below, then save.`;
-    if (data.warnings && data.warnings.length) {
-      warningsEl.hidden = false;
-      for (const w of data.warnings) {
-        const li = document.createElement("li");
-        li.textContent = w;
-        warningsEl.appendChild(li);
-      }
-    }
     loadProfileIntoForm(data.filename, data.profile);
-    exportCsvLink.href = `${API_BASE}/api/cv/${currentCvId}/export.csv`;
-    exportCsvLink.hidden = false;
+    exportJsonLink.href = `${API_BASE}/api/cv/${currentCvId}/export.json`;
+    exportJsonLink.hidden = false;
   } catch (err) {
     statusEl.textContent = `Error: ${err.message}`;
   }
 });
 
-for (const btn of document.querySelectorAll(".add-entry-btn")) {
-  btn.addEventListener("click", () => {
-    const kind = btn.dataset.add;
-    if (kind === "work") workEntriesEl.appendChild(makeEntryCard(WORK_FIELDS, {}));
-    if (kind === "education") educationEntriesEl.appendChild(makeEntryCard(EDUCATION_FIELDS, {}));
-    if (kind === "language") languageEntriesEl.appendChild(makeEntryCard(LANGUAGE_FIELDS, {}));
-  });
-}
-
 editForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!currentCvId) {
-    saveStatusEl.textContent = "Import a CSV first.";
+    saveStatusEl.textContent = "Import a JSON file first.";
     return;
   }
   saveStatusEl.textContent = "Saving…";
@@ -238,8 +410,8 @@ editForm.addEventListener("submit", async (event) => {
       throw new Error(errorBody.detail || `Request failed with ${response.status}`);
     }
     saveStatusEl.textContent = "Saved.";
-    exportCsvLink.href = `${API_BASE}/api/cv/${currentCvId}/export.csv`;
-    exportCsvLink.hidden = false;
+    exportJsonLink.href = `${API_BASE}/api/cv/${currentCvId}/export.json`;
+    exportJsonLink.hidden = false;
   } catch (err) {
     saveStatusEl.textContent = `Error: ${err.message}`;
   }

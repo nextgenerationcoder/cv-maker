@@ -40,36 +40,65 @@ def _get_client() -> anthropic.Anthropic:
     return _client
 
 
+def _experience_lines(experiences: list) -> str:
+    parts = []
+    for exp in experiences or []:
+        bullet = exp.get("bullet", "")
+        skills = exp.get("skills") or []
+        metrics = exp.get("metrics") or []
+        tail = ""
+        if skills:
+            tail += f" [skills: {', '.join(skills)}]"
+        if metrics:
+            tail += f" [metrics: {', '.join(metrics)}]"
+        parts.append(f"    - {bullet}{tail}")
+    return "\n".join(parts)
+
+
 def _build_profile_summary(profile: dict) -> str:
     lines: list[str] = []
-    if profile.get("summary"):
-        lines.append(f"Summary: {profile['summary']}")
-    if profile.get("skills"):
-        lines.append("Skills: " + ", ".join(profile["skills"]))
-    if profile.get("technical_knowledge"):
-        lines.append("Technical knowledge: " + ", ".join(profile["technical_knowledge"]))
-    if profile.get("languages"):
-        langs = ", ".join(
-            f"{l['name']} ({l.get('proficiency') or 'unspecified level'})" for l in profile["languages"]
-        )
-        lines.append("Languages: " + langs)
-    if profile.get("education"):
-        edu = "; ".join(
-            f"{e.get('degree') or ''} {e.get('field_of_study') or ''} — {e.get('institution')}".strip(" —")
-            for e in profile["education"]
-        )
-        lines.append("Education: " + edu)
+
+    personal = profile.get("personal_information") or {}
+    if personal.get("location"):
+        lines.append(f"Location: {personal['location']}")
+
     if profile.get("work_experience"):
-        work = "; ".join(
-            f"{w.get('title')} at {w.get('company')} "
-            f"({w.get('start_date') or '?'}–{w.get('end_date') or '?'})"
-            for w in profile["work_experience"]
-        )
-        lines.append("Work experience: " + work)
-    if profile.get("preferred_roles"):
-        lines.append("Preferred roles: " + ", ".join(profile["preferred_roles"]))
-    if profile.get("certifications"):
-        lines.append("Certifications: " + ", ".join(profile["certifications"]))
+        lines.append("Work experience:")
+        for w in profile["work_experience"]:
+            lines.append(f"  {w.get('role')} at {w.get('company')} ({w.get('period')})")
+            exp_lines = _experience_lines(w.get("experiences"))
+            if exp_lines:
+                lines.append(exp_lines)
+
+    if profile.get("education"):
+        lines.append("Education:")
+        for e in profile["education"]:
+            degree_bit = f"{e.get('degree')} " if e.get("degree") else ""
+            lines.append(f"  {degree_bit}{e.get('program')} — {e.get('institution')} ({e.get('period')})")
+            exp_lines = _experience_lines(e.get("experiences"))
+            if exp_lines:
+                lines.append(exp_lines)
+
+    if profile.get("training_and_projects"):
+        lines.append("Training & projects:")
+        for t in profile["training_and_projects"]:
+            lines.append(f"  {t.get('title')} ({t.get('period')})")
+            exp_lines = _experience_lines(t.get("experiences"))
+            if exp_lines:
+                lines.append(exp_lines)
+
+    if profile.get("languages"):
+        langs = ", ".join(f"{l['language']} ({l.get('level') or 'unspecified level'})" for l in profile["languages"])
+        lines.append("Languages: " + langs)
+
+    tools = profile.get("tools") or {}
+    for category, items in tools.items():
+        if items:
+            names = ", ".join(
+                f"{i['name']}" + (f" ({i['level']})" if i.get("level") else "") for i in items
+            )
+            lines.append(f"Tools ({category}): {names}")
+
     return "\n".join(lines)
 
 

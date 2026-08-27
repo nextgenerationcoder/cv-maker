@@ -1,47 +1,75 @@
-from typing import List, Optional
+from typing import Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class ContactInfo(BaseModel):
-    name: Optional[str] = None
-    email: Optional[str] = None
-    phone: Optional[str] = None
+class PersonalInformation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = ""
+    email: str = ""
+    phone: str = ""
     location: Optional[str] = None
-    linkedin: Optional[str] = None
-    website: Optional[str] = None
 
 
-class EducationEntry(BaseModel):
-    institution: str
-    degree: Optional[str] = None
-    field_of_study: Optional[str] = None
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
-    details: Optional[str] = None
+class ExperienceItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    bullet: str
+    skills: List[str] = Field(default_factory=list)
+    metrics: List[str] = Field(default_factory=list)
 
 
 class WorkExperienceEntry(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     company: str
-    title: str
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
+    role: str
+    period: str
     location: Optional[str] = None
-    responsibilities: List[str] = Field(default_factory=list)
+    experiences: List[ExperienceItem] = Field(default_factory=list)
+
+
+class EducationEntry(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    institution: str
+    program: str
+    degree: Optional[str] = None
+    period: str
+    location: Optional[str] = None
+    experiences: List[ExperienceItem] = Field(default_factory=list)
+
+
+class TrainingProjectEntry(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str
+    period: str
+    duration: Optional[str] = None
+    experiences: List[ExperienceItem] = Field(default_factory=list)
 
 
 class LanguageEntry(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    language: str
+    level: str
+
+
+class ToolItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str
-    proficiency: Optional[str] = None
+    level: Optional[str] = None
 
 
 class CVProfile(BaseModel):
-    contact: ContactInfo
-    summary: Optional[str] = None
-    skills: List[str] = Field(default_factory=list)
-    technical_knowledge: List[str] = Field(default_factory=list)
-    education: List[EducationEntry] = Field(default_factory=list)
+    model_config = ConfigDict(extra="forbid")
+
+    personal_information: PersonalInformation = Field(default_factory=PersonalInformation)
     work_experience: List[WorkExperienceEntry] = Field(default_factory=list)
+    education: List[EducationEntry] = Field(default_factory=list)
+    training_and_projects: List[TrainingProjectEntry] = Field(default_factory=list)
     languages: List[LanguageEntry] = Field(default_factory=list)
-    preferred_roles: List[str] = Field(default_factory=list)
-    certifications: List[str] = Field(default_factory=list)
+    tools: Dict[str, List[ToolItem]] = Field(default_factory=dict)

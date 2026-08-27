@@ -70,46 +70,43 @@ GET /api/jobs?search_term=software+engineer&location=Remote&site_name=indeed&sit
 results. Open it directly in a browser (with the backend running on
 `localhost:8000`), or serve it with any static file server.
 
-## CV import (CSV)
+## CV import (JSON)
 
-Earlier versions tried two things that turned out badly: a local
-regex/PDF-layout parser (unreliable on real-world resumes) and a blank
-manual-entry form (tedious, redundant). Both are gone. The flow now:
+Earlier versions tried a local regex/PDF-layout parser (unreliable on
+real-world resumes), a blank manual-entry form (tedious), and a flat CSV
+format — all replaced. The data model now matches a "source of truth"
+JSON schema (personal info, work/education/training entries each with
+per-bullet skills and metrics, languages, and free-form tool categories)
+that `cv_models.py`'s `CVProfile` mirrors field-for-field, including
+`extra="forbid"` so a typo'd key from a hand-edited or LLM-produced file
+is caught as a clear validation error rather than silently dropped. The
+flow:
 
-1. Download the CSV template from `frontend/cv.html` (or `GET
-   /api/cv/template.csv` directly).
+1. Download the JSON template from `frontend/cv.html` (or `GET
+   /api/cv/template.json` directly).
 2. Give the template + your resume to whatever AI assistant you like
    (ChatGPT, Claude, etc. — outside this app) and ask it to fill the
-   template in. The page shows a ready-to-copy example prompt.
-3. Upload the completed CSV. The backend parses it with plain
-   `csv.DictReader` — no AI call, no PDF-layout guessing on our side —
+   template in, keeping the same keys/nesting. The page shows a
+   ready-to-copy example prompt.
+3. Upload the completed JSON. The backend validates it against
+   `CVProfile` (Pydantic) — no AI call, no layout-guessing on our side —
    and stores the result in SQLite.
 
-The CSV is a flat "long" table rather than one row per profile, because a
-variable number of jobs/degrees/languages doesn't map onto fixed columns.
-Every row has 7 columns — `type,field1,field2,field3,field4,field5,field6`
-— and `type` says what the row is (`contact`, `summary`, `skill`,
-`technical`, `education`, `work`, `language`, `preferred_role`,
-`certification`); unused `field*` columns are left blank. Multiple values
-in one cell (e.g. `work` responsibilities) are `;`-separated. This shape
-is deliberately simple: any LLM can produce it reliably, and our parser
-never has to guess at structure the way the old PDF parser did.
-
-A malformed or unrecognized row doesn't fail the whole import — it's
-skipped and reported back as a warning, so one mistake from your LLM
-doesn't sink the rest of the file. Every field is still editable on the
-page after import (fix anything, add/remove entries) before you save.
+Every field is still editable on the page after import (fix anything,
+add/remove work/education/training entries, add/remove bullets within
+an entry, add/remove tool categories) before you save. A validation
+failure names the exact field and problem (e.g.
+`work_experience.0.role: Field required`) rather than a generic error.
 
 ### API
 
-- `GET /api/cv/template.csv` — downloads the blank template with example
-  rows.
-- `POST /api/cv/import-csv` — multipart form, field `file` (CSV, max
-  2MB). Returns `{id, filename, uploaded_at, updated_at, profile,
-  warnings}` — `warnings` lists any skipped rows.
-- `GET /api/cv/{id}/export.csv` — re-export a stored profile back to the
-  same CSV shape (round-trips through an LLM again if you want another
-  editing pass).
+- `GET /api/cv/template.json` — downloads the blank template.
+- `POST /api/cv/import-json` — multipart form, field `file` (JSON, max
+  2MB). Returns `{id, filename, uploaded_at, updated_at, profile}`. 422
+  with a field-level message on a schema mismatch.
+- `GET /api/cv/{id}/export.json` — re-export a stored profile back to
+  the same JSON shape (round-trips through an LLM again if you want
+  another editing pass).
 - `PUT /api/cv/{id}` — JSON body `{filename?, profile}`, overwrites a
   stored entry (saves edits made on the page). 404 if the id doesn't
   exist.

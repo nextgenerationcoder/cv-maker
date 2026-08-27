@@ -325,15 +325,70 @@ body {
   font-size: 0.8rem;
 }
 
-.cv-warnings {
-  font-size: 0.85rem;
-  color: #92400e;
-  background: #fef3c7;
-  border-radius: 6px;
-  padding: 0.5rem 1rem 0.5rem 1.5rem;
-  margin: 0 0 1rem;
+#export-json-link {
+  font-size: 0.9rem;
 }
 
-#export-csv-link {
+.entry-card h4 {
+  font-size: 0.85rem;
+  margin: 0.75rem 0 0.4rem;
+  color: #555;
+}
+
+.experiences-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.experience-item {
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+  background: #fafafa;
+}
+
+.experience-item textarea,
+.experience-item input {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
   font-size: 0.9rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-bottom: 0.35rem;
+}
+
+.add-exp-btn {
+  font-size: 0.8rem;
+  padding: 0.3rem 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
+.tool-category {
+  background: #fdfdfd;
+}
+
+.tool-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0.4rem 0;
+}
+
+.tool-item {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.tool-item input {
+  flex: 1;
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
 }

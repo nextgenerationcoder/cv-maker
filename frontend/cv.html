@@ -15,30 +15,29 @@
     <h1>Upload CV</h1>
     <ol class="csv-steps">
       <li>
-        <a id="download-template-link" href="#" download="cv_template.csv">Download the CSV template</a>
+        <a id="download-template-link" href="#" download="cv_template.json">Download the JSON template</a>
       </li>
       <li>
         Give it to an AI assistant (ChatGPT, Claude, etc.) along with your
         resume, and ask it to fill in the template — for example:
         <blockquote class="prompt-example">
-          "Here's a CSV template for a resume and my resume text/file. Fill
-          in the template with my information: keep the header row and the
-          <code>type</code> column values exactly as shown, add as many
-          <code>skill</code>/<code>technical</code>/<code>education</code>/
-          <code>work</code>/<code>language</code>/<code>preferred_role</code>/
-          <code>certification</code> rows as needed, and give me back the
-          completed CSV file."
+          "Here's a JSON template for a resume and my resume text/file. Fill
+          in the template with my information, following the same
+          structure exactly (same keys, same nesting) — add as many
+          <code>work_experience</code>/<code>education</code>/
+          <code>training_and_projects</code>/<code>languages</code> entries
+          and <code>experiences</code> bullets as needed, and give me back
+          the completed JSON file."
         </blockquote>
       </li>
-      <li>Upload the completed CSV below.</li>
+      <li>Upload the completed JSON below.</li>
     </ol>
 
     <form id="cv-upload-form">
-      <input type="file" id="cv-file" accept="text/csv,.csv" />
-      <button type="submit">Import CSV</button>
+      <input type="file" id="cv-file" accept="application/json,.json" />
+      <button type="submit">Import JSON</button>
     </form>
     <p id="cv-status"></p>
-    <ul id="cv-warnings" class="cv-warnings" hidden></ul>
 
     <form id="cv-edit-form" class="cv-edit-form" hidden>
       <label class="field">
@@ -46,58 +45,38 @@
         <input type="text" data-field="filename" placeholder="e.g. My CV" />
       </label>
 
-      <h2>Contact</h2>
+      <h2>Personal information</h2>
       <div class="field-grid">
-        <label class="field"><span>Name</span><input type="text" data-field="contact.name" /></label>
-        <label class="field"><span>Email</span><input type="text" data-field="contact.email" /></label>
-        <label class="field"><span>Phone</span><input type="text" data-field="contact.phone" /></label>
-        <label class="field"><span>Location</span><input type="text" data-field="contact.location" /></label>
-        <label class="field"><span>LinkedIn</span><input type="text" data-field="contact.linkedin" /></label>
-        <label class="field"><span>Website</span><input type="text" data-field="contact.website" /></label>
+        <label class="field"><span>Name</span><input type="text" data-field="personal.name" /></label>
+        <label class="field"><span>Email</span><input type="text" data-field="personal.email" /></label>
+        <label class="field"><span>Phone</span><input type="text" data-field="personal.phone" /></label>
+        <label class="field"><span>Location</span><input type="text" data-field="personal.location" /></label>
       </div>
-
-      <h2>Summary</h2>
-      <label class="field"><textarea data-field="summary" rows="3"></textarea></label>
-
-      <h2>Preferred roles</h2>
-      <label class="field hint-field">
-        <span class="hint">One per line</span>
-        <textarea data-field="preferred_roles" rows="2"></textarea>
-      </label>
-
-      <h2>Skills</h2>
-      <label class="field hint-field">
-        <span class="hint">One per line</span>
-        <textarea data-field="skills" rows="3"></textarea>
-      </label>
-
-      <h2>Technical knowledge</h2>
-      <label class="field hint-field">
-        <span class="hint">One per line</span>
-        <textarea data-field="technical_knowledge" rows="3"></textarea>
-      </label>
-
-      <h2>Certifications</h2>
-      <label class="field hint-field">
-        <span class="hint">One per line</span>
-        <textarea data-field="certifications" rows="2"></textarea>
-      </label>
 
       <h2>Work experience</h2>
       <div id="work-entries" class="entry-list-edit"></div>
-      <button type="button" class="add-entry-btn" data-add="work">+ Add work experience</button>
+      <button type="button" class="add-entry-btn" id="add-work-btn">+ Add work experience</button>
 
       <h2>Education</h2>
       <div id="education-entries" class="entry-list-edit"></div>
-      <button type="button" class="add-entry-btn" data-add="education">+ Add education</button>
+      <button type="button" class="add-entry-btn" id="add-education-btn">+ Add education</button>
+
+      <h2>Training &amp; projects</h2>
+      <div id="training-entries" class="entry-list-edit"></div>
+      <button type="button" class="add-entry-btn" id="add-training-btn">+ Add training/project</button>
 
       <h2>Languages</h2>
       <div id="language-entries" class="entry-list-edit"></div>
-      <button type="button" class="add-entry-btn" data-add="language">+ Add language</button>
+      <button type="button" class="add-entry-btn" id="add-language-btn">+ Add language</button>
+
+      <h2>Tools</h2>
+      <p class="hint">Grouped by category (e.g. "ai_automation") — add as many categories as you like.</p>
+      <div id="tools-container" class="entry-list-edit"></div>
+      <button type="button" class="add-entry-btn" id="add-tool-category-btn">+ Add tool category</button>
 
       <div class="save-bar">
         <button type="submit">Save changes</button>
-        <a id="export-csv-link" href="#" hidden>Export as CSV</a>
+        <a id="export-json-link" href="#" hidden>Export as JSON</a>
         <span id="save-status"></span>
       </div>
     </form>
