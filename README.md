@@ -36,6 +36,18 @@ Note: JobSpy does not expose applicant counts — job boards generally don't
 publish that in their public listings, so it isn't something this API can
 filter or return.
 
+### Fill the form from a LinkedIn search URL
+
+Instead of retyping filters, paste a LinkedIn job search URL (e.g. from
+`linkedin.com/jobs/search/?keywords=...`) into the "Fill from URL" box at
+the top of the page. The frontend parses `keywords`, `location`,
+`distance`, `f_JT` (job type), `f_WT` (remote), `f_AL` (easy apply), and
+`f_TPR` (posted-within window) straight out of the URL's query string and
+populates the search form — the actual search still runs through the same
+JobSpy-backed `/api/jobs` endpoint above. This only reads LinkedIn's
+classic keyword-search URL format; it doesn't call LinkedIn or use its
+newer AI search.
+
 Example:
 
 ```

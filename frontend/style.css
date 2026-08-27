@@ -37,6 +37,23 @@ body {
   margin: 0 0 0.25rem;
 }
 
+#url-form {
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #ddd;
+  margin-bottom: 1rem;
+}
+
+#url-form input[type="url"] {
+  flex: 1;
+  min-width: 16rem;
+}
+
+#url-status {
+  margin: -0.5rem 0 1rem;
+  font-size: 0.85rem;
+  color: #666;
+}
+
 #results {
   list-style: none;
   padding: 0;

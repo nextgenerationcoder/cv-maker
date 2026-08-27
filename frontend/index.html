@@ -9,6 +9,17 @@
 <body>
   <main class="container">
     <h1>Job Search</h1>
+
+    <form id="url-form">
+      <input
+        type="url"
+        id="linkedin-url"
+        placeholder="Paste a LinkedIn job search URL to fill the form below"
+      />
+      <button type="submit">Fill from URL</button>
+    </form>
+    <p id="url-status"></p>
+
     <form id="search-form">
       <input type="text" id="search-term" placeholder="Job title or keywords" required />
       <input type="text" id="location" placeholder="Location (optional)" />
@@ -20,13 +31,20 @@
         <option value="google">Google</option>
       </select>
 
-      <select id="hours-old">
-        <option value="" selected>Posted anytime</option>
-        <option value="24">Last 24 hours</option>
-        <option value="72">Last 3 days</option>
-        <option value="168">Last week</option>
-        <option value="720">Last month</option>
-      </select>
+      <input
+        type="number"
+        id="hours-old"
+        placeholder="Posted within (hours)"
+        min="1"
+        list="hours-old-presets"
+      />
+      <datalist id="hours-old-presets">
+        <option value="5"></option>
+        <option value="24"></option>
+        <option value="72"></option>
+        <option value="168"></option>
+        <option value="720"></option>
+      </datalist>
 
       <select id="job-type">
         <option value="" selected>Any job type</option>
