@@ -1,0 +1,25 @@
+services:
+  backend:
+    build: ./backend
+    restart: always
+    networks:
+      - n8n-compose_default
+    # Internal only — reached by the frontend container over the shared
+    # network. No Traefik labels: nothing should route to this directly.
+
+  frontend:
+    build: ./frontend
+    restart: always
+    networks:
+      - n8n-compose_default
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.cvmaker.rule=Host(`cvmaker.amirseyti.de`)
+      - traefik.http.routers.cvmaker.tls=true
+      - traefik.http.routers.cvmaker.entrypoints=web,websecure
+      - traefik.http.routers.cvmaker.tls.certresolver=mytlschallenge
+      - traefik.http.services.cvmaker.loadbalancer.server.port=80
+
+networks:
+  n8n-compose_default:
+    external: true

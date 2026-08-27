@@ -1,4 +1,9 @@
-const API_BASE = window.API_BASE || "http://localhost:8000";
+// Empty string = relative /api/... requests, which is correct whenever this
+// page is served through the nginx container (docker-compose) since it
+// proxies /api/ to the backend itself. For running the frontend standalone
+// against a bare `uvicorn` on port 8000 (no nginx in front), set
+// window.API_BASE = "http://localhost:8000" before this script loads.
+const API_BASE = window.API_BASE || "";
 
 const form = document.getElementById("search-form");
 const statusEl = document.getElementById("status");
