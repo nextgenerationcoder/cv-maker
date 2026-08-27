@@ -5,6 +5,7 @@ services:
     environment:
       - CV_DB_PATH=/data/cv.db
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set in .env — see .env.example}
     volumes:
       - cv_data:/data
     networks:

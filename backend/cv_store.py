@@ -29,6 +29,11 @@ def _connect() -> sqlite3.Connection:
         conn.commit()
     except sqlite3.OperationalError:
         pass  # column already exists — fine on every run after the first
+    try:
+        conn.execute("ALTER TABLE cv_profiles ADD COLUMN user_id TEXT")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass  # column already exists — fine on every run after the first
 
     conn.execute(
         """
@@ -61,13 +66,13 @@ def init_db() -> None:
     _connect().close()
 
 
-def save_cv(cv_id: str, filename: str, profile: CVProfile) -> str:
+def save_cv(cv_id: str, filename: str, profile: CVProfile, user_id: str) -> str:
     now = datetime.now(timezone.utc).isoformat()
     conn = _connect()
     try:
         conn.execute(
-            "INSERT INTO cv_profiles (id, filename, uploaded_at, updated_at, data) VALUES (?, ?, ?, ?, ?)",
-            (cv_id, filename, now, now, profile.model_dump_json()),
+            "INSERT INTO cv_profiles (id, filename, uploaded_at, updated_at, data, user_id) VALUES (?, ?, ?, ?, ?, ?)",
+            (cv_id, filename, now, now, profile.model_dump_json(), user_id),
         )
         conn.commit()
     finally:
@@ -75,19 +80,21 @@ def save_cv(cv_id: str, filename: str, profile: CVProfile) -> str:
     return now
 
 
-def update_cv(cv_id: str, profile: CVProfile, filename: Optional[str] = None) -> Optional[str]:
+def update_cv(
+    cv_id: str, profile: CVProfile, user_id: str, filename: Optional[str] = None
+) -> Optional[str]:
     now = datetime.now(timezone.utc).isoformat()
     conn = _connect()
     try:
         if filename is not None:
             cur = conn.execute(
-                "UPDATE cv_profiles SET data = ?, filename = ?, updated_at = ? WHERE id = ?",
-                (profile.model_dump_json(), filename, now, cv_id),
+                "UPDATE cv_profiles SET data = ?, filename = ?, updated_at = ? WHERE id = ? AND user_id = ?",
+                (profile.model_dump_json(), filename, now, cv_id, user_id),
             )
         else:
             cur = conn.execute(
-                "UPDATE cv_profiles SET data = ?, updated_at = ? WHERE id = ?",
-                (profile.model_dump_json(), now, cv_id),
+                "UPDATE cv_profiles SET data = ?, updated_at = ? WHERE id = ? AND user_id = ?",
+                (profile.model_dump_json(), now, cv_id, user_id),
             )
         conn.commit()
         updated = cur.rowcount > 0
@@ -96,12 +103,12 @@ def update_cv(cv_id: str, profile: CVProfile, filename: Optional[str] = None) ->
     return now if updated else None
 
 
-def fetch_cv(cv_id: str) -> Optional[dict]:
+def fetch_cv(cv_id: str, user_id: str) -> Optional[dict]:
     conn = _connect()
     try:
         row = conn.execute(
-            "SELECT id, filename, uploaded_at, updated_at, data FROM cv_profiles WHERE id = ?",
-            (cv_id,),
+            "SELECT id, filename, uploaded_at, updated_at, data FROM cv_profiles WHERE id = ? AND user_id = ?",
+            (cv_id, user_id),
         ).fetchone()
     finally:
         conn.close()
@@ -116,12 +123,13 @@ def fetch_cv(cv_id: str) -> Optional[dict]:
     }
 
 
-def list_cvs(limit: int = 20) -> list[dict]:
+def list_cvs(user_id: str, limit: int = 20) -> list[dict]:
     conn = _connect()
     try:
         rows = conn.execute(
-            "SELECT id, filename, uploaded_at, updated_at FROM cv_profiles ORDER BY updated_at DESC LIMIT ?",
-            (limit,),
+            "SELECT id, filename, uploaded_at, updated_at FROM cv_profiles "
+            "WHERE user_id = ? ORDER BY updated_at DESC LIMIT ?",
+            (user_id, limit),
         ).fetchall()
     finally:
         conn.close()

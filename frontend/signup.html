@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CV Maker - Sign Up</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="container auth-container">
+    <h1>Sign up</h1>
+    <form id="signup-form" class="auth-form">
+      <label class="field">
+        <span>Email</span>
+        <input type="email" id="signup-email" required autocomplete="email" />
+      </label>
+      <label class="field">
+        <span>Password</span>
+        <input type="password" id="signup-password" required autocomplete="new-password" minlength="8" />
+      </label>
+      <p class="hint">At least 8 characters.</p>
+      <button type="submit">Sign up</button>
+    </form>
+    <p id="signup-status" class="hint"></p>
+    <p class="hint">Already have an account? <a href="login.html">Log in</a></p>
+  </main>
+  <script src="auth.js"></script>
+  <script>
+    const signupForm = document.getElementById("signup-form");
+    const signupStatusEl = document.getElementById("signup-status");
+
+    signupForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const email = document.getElementById("signup-email").value.trim();
+      const password = document.getElementById("signup-password").value;
+      signupStatusEl.textContent = "Creating account…";
+
+      try {
+        const response = await fetch(`${API_BASE}/api/auth/signup`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+        if (!response.ok) {
+          const errorBody = await response.json().catch(() => ({}));
+          const detail = Array.isArray(errorBody.detail)
+            ? errorBody.detail.map((d) => d.msg).join(" ")
+            : errorBody.detail;
+          throw new Error(detail || `Request failed with ${response.status}`);
+        }
+        const data = await response.json();
+        setSession(data.access_token, data.email);
+        window.location.href = "index.html";
+      } catch (err) {
+        signupStatusEl.textContent = `Error: ${err.message}`;
+      }
+    });
+
+    if (getToken()) window.location.href = "index.html";
+  </script>
+</body>
+</html>

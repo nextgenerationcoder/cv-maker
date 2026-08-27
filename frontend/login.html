@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CV Maker - Log In</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="container auth-container">
+    <h1>Log in</h1>
+    <form id="login-form" class="auth-form">
+      <label class="field">
+        <span>Email</span>
+        <input type="email" id="login-email" required autocomplete="email" />
+      </label>
+      <label class="field">
+        <span>Password</span>
+        <input type="password" id="login-password" required autocomplete="current-password" />
+      </label>
+      <button type="submit">Log in</button>
+    </form>
+    <p id="login-status" class="hint"></p>
+    <p class="hint">No account yet? <a href="signup.html">Sign up</a></p>
+  </main>
+  <script src="auth.js"></script>
+  <script>
+    const loginForm = document.getElementById("login-form");
+    const loginStatusEl = document.getElementById("login-status");
+
+    loginForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const email = document.getElementById("login-email").value.trim();
+      const password = document.getElementById("login-password").value;
+      loginStatusEl.textContent = "Logging in…";
+
+      try {
+        const response = await fetch(`${API_BASE}/api/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+        if (!response.ok) {
+          const errorBody = await response.json().catch(() => ({}));
+          throw new Error(errorBody.detail || `Request failed with ${response.status}`);
+        }
+        const data = await response.json();
+        setSession(data.access_token, data.email);
+        const params = new URLSearchParams(window.location.search);
+        window.location.href = params.get("next") || "index.html";
+      } catch (err) {
+        loginStatusEl.textContent = `Error: ${err.message}`;
+      }
+    });
+
+    if (getToken()) window.location.href = "index.html";
+  </script>
+</body>
+</html>

@@ -12,6 +12,7 @@
       <a href="index.html">Job Search</a>
       <a href="cv.html" class="active">Upload CV</a>
       <a href="learning.html">Skills to Learn</a>
+      <span id="account-bar" class="account-bar"></span>
     </nav>
     <h1>Upload CV</h1>
     <ol class="csv-steps">
@@ -94,6 +95,8 @@
       <div id="gaps-list" class="entry-list-edit"></div>
     </section>
   </main>
+  <script src="auth.js"></script>
+  <script>if (!requireAuth()) document.querySelector("main").hidden = true;</script>
   <script src="cv.js"></script>
 </body>
 </html>

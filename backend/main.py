@@ -2,11 +2,14 @@ import logging
 from typing import Optional
 
 import pandas as pd
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from jobspy import scrape_jobs
 
 import cv_store
+import user_store
+from auth import get_current_user
+from auth import router as auth_router
 from cv import router as cv_router
 from jobs_score import router as jobs_score_router
 
@@ -21,13 +24,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router)
 app.include_router(cv_router)
 app.include_router(jobs_score_router)
 
 
 @app.on_event("startup")
-def _init_cv_db() -> None:
+def _init_db() -> None:
     cv_store.init_db()
+    user_store.init_db()
 
 SUPPORTED_SITES = ["indeed", "linkedin", "zip_recruiter", "glassdoor", "google"]
 SUPPORTED_JOB_TYPES = [
@@ -81,6 +86,7 @@ def search_jobs(
         description="Comma-separated; drop jobs whose title/description/company "
         "contains any of these (applied after scraping, not sent to the job board)",
     ),
+    current_user: dict = Depends(get_current_user),
 ):
     invalid_sites = [site for site in site_name if site not in SUPPORTED_SITES]
     if invalid_sites:

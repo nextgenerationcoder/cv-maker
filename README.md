@@ -1,5 +1,39 @@
 # CV Maker
 
+## Accounts (sign up / log in)
+
+Every part of the app — job search, CV storage, gap review, Skills to
+Learn — requires an account, and each account only ever sees its own
+data. Sign up with an email + password (min 8 characters) on
+`frontend/signup.html`; the backend hashes passwords with bcrypt (never
+stored in plaintext) and returns a JWT session token, which the frontend
+keeps in `localStorage` and sends as `Authorization: Bearer <token>` on
+every API call (see `frontend/auth.js`). Tokens last 30 days. Visiting
+any page without a valid session redirects to `login.html`; a 401 from
+the API (expired/invalid token) does the same.
+
+Set `JWT_SECRET` (a long random string, e.g. `openssl rand -hex 32`) in
+your `.env` — it signs the session tokens, so anyone who knows it can
+forge logins. `docker-compose.yml` fails to start without it; running
+the backend directly falls back to an insecure hardcoded dev value,
+fine for local testing only.
+
+### API
+
+- `POST /api/auth/signup` — JSON body `{email, password}`. 409 if the
+  email's taken, 422 if the email's invalid or the password's under 8
+  characters. Returns `{access_token, token_type, email}`.
+- `POST /api/auth/login` — JSON body `{email, password}`. 401 on a wrong
+  email/password. Same response shape as signup.
+- `GET /api/auth/me` — returns `{id, email}` for the bearer token's
+  owner. 401 if the token's missing/expired/invalid.
+
+Every other endpoint below now requires the same `Authorization: Bearer
+<token>` header, and CVs, gaps, and learning items are all scoped to the
+requesting user — fetching, editing, or deleting another user's data
+404s as if it doesn't exist, rather than 403ing (so an id doesn't leak
+whether it belongs to someone else).
+
 ## Job search (JobSpy)
 
 The `backend/` folder exposes a small FastAPI service that wraps

@@ -1,9 +1,4 @@
-// Empty string = relative /api/... requests, which is correct whenever this
-// page is served through the nginx container (docker-compose) since it
-// proxies /api/ to the backend itself. For running the frontend standalone
-// against a bare `uvicorn` on port 8000 (no nginx in front), set
-// window.API_BASE = "http://localhost:8000" before this script loads.
-const API_BASE = window.API_BASE || "";
+// API_BASE and authFetch come from auth.js, loaded before this script.
 
 const form = document.getElementById("search-form");
 const statusEl = document.getElementById("status");
@@ -20,7 +15,7 @@ let hasSavedCv = false;
 
 async function loadCvOptions() {
   try {
-    const response = await fetch(`${API_BASE}/api/cv?limit=50`);
+    const response = await authFetch(`${API_BASE}/api/cv?limit=50`);
     if (!response.ok) return [];
     const data = await response.json();
     scoreCvSelectEl.innerHTML = "";
@@ -148,7 +143,7 @@ form.addEventListener("submit", async (event) => {
   if (excludeKeywords) params.set("exclude_keywords", excludeKeywords);
 
   try {
-    const response = await fetch(`${API_BASE}/api/jobs?${params.toString()}`);
+    const response = await authFetch(`${API_BASE}/api/jobs?${params.toString()}`);
     if (!response.ok) {
       const errorBody = await response.json().catch(() => ({}));
       throw new Error(errorBody.detail || `Request failed with ${response.status}`);
@@ -240,7 +235,7 @@ resultsEl.addEventListener("click", async (event) => {
   };
 
   try {
-    const response = await fetch(`${API_BASE}/api/jobs/score`, {
+    const response = await authFetch(`${API_BASE}/api/jobs/score`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ cv_id: cvId, jobs: [payloadJob] }),
@@ -281,7 +276,7 @@ async function saveSelectedGaps(btn) {
   statusEl.textContent = "Saving…";
 
   try {
-    const response = await fetch(`${API_BASE}/api/cv/${cvId}/gaps`, {
+    const response = await authFetch(`${API_BASE}/api/cv/${cvId}/gaps`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ items: checked, source: job?.title || null }),

@@ -1,4 +1,4 @@
-const API_BASE = window.API_BASE || "";
+// API_BASE and authFetch come from auth.js, loaded before this script.
 const LAST_CV_ID_KEY = "cvMakerLastCvId";
 
 const cvSelectEl = document.getElementById("learning-cv-select");
@@ -15,7 +15,7 @@ function formatDate(iso) {
 
 async function loadCvOptions() {
   try {
-    const response = await fetch(`${API_BASE}/api/cv?limit=50`);
+    const response = await authFetch(`${API_BASE}/api/cv?limit=50`);
     if (!response.ok) return [];
     const data = await response.json();
     cvSelectEl.innerHTML = "";
@@ -95,7 +95,7 @@ async function loadLearning() {
   }
   statusEl.textContent = "Loading…";
   try {
-    const response = await fetch(`${API_BASE}/api/cv/${cvId}/learning`);
+    const response = await authFetch(`${API_BASE}/api/cv/${cvId}/learning`);
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const data = await response.json();
     renderList(data.items);
@@ -108,7 +108,7 @@ async function loadLearning() {
 async function removeItem(itemId, li) {
   const cvId = cvSelectEl.value;
   try {
-    await fetch(`${API_BASE}/api/cv/${cvId}/learning/${itemId}`, { method: "DELETE" });
+    await authFetch(`${API_BASE}/api/cv/${cvId}/learning/${itemId}`, { method: "DELETE" });
   } catch {
     // best-effort — remove from view regardless
   }
@@ -125,7 +125,7 @@ async function promoteToCv(item, li) {
   if (!category) return;
 
   try {
-    const response = await fetch(`${API_BASE}/api/cv/${cvId}`);
+    const response = await authFetch(`${API_BASE}/api/cv/${cvId}`);
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
     const record = await response.json();
     const profile = record.profile;
@@ -133,7 +133,7 @@ async function promoteToCv(item, li) {
     profile.tools[category] = profile.tools[category] || [];
     profile.tools[category].push({ name: item.text, level: null });
 
-    const putResponse = await fetch(`${API_BASE}/api/cv/${cvId}`, {
+    const putResponse = await authFetch(`${API_BASE}/api/cv/${cvId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ profile, filename: record.filename }),

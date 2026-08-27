@@ -12,6 +12,7 @@
       <a href="index.html" class="active">Job Search</a>
       <a href="cv.html">Upload CV</a>
       <a href="learning.html">Skills to Learn</a>
+      <span id="account-bar" class="account-bar"></span>
     </nav>
     <h1>Job Search</h1>
 
@@ -98,6 +99,8 @@
 
     <ul id="results"></ul>
   </main>
+  <script src="auth.js"></script>
+  <script>if (!requireAuth()) document.querySelector("main").hidden = true;</script>
   <script src="app.js"></script>
 </body>
 </html>

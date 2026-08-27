@@ -12,6 +12,7 @@
       <a href="index.html">Job Search</a>
       <a href="cv.html">Upload CV</a>
       <a href="learning.html" class="active">Skills to Learn</a>
+      <span id="account-bar" class="account-bar"></span>
     </nav>
     <h1>Skills to Learn</h1>
     <p class="hint">
@@ -28,6 +29,8 @@
 
     <ul id="learning-list"></ul>
   </main>
+  <script src="auth.js"></script>
+  <script>if (!requireAuth()) document.querySelector("main").hidden = true;</script>
   <script src="learning.js"></script>
 </body>
 </html>

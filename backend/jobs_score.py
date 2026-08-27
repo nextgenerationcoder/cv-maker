@@ -2,10 +2,11 @@ import logging
 from typing import List
 
 import anthropic
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 import cv_store
+from auth import get_current_user
 from job_scoring import MAX_JOBS_PER_REQUEST, JobInput, score_jobs
 
 logger = logging.getLogger("cv_maker.jobs_score")
@@ -19,7 +20,9 @@ class ScoreJobsRequest(BaseModel):
 
 
 @router.post("/score")
-def score_jobs_endpoint(body: ScoreJobsRequest):
+def score_jobs_endpoint(
+    body: ScoreJobsRequest, current_user: dict = Depends(get_current_user)
+):
     if not body.jobs:
         raise HTTPException(status_code=400, detail="No jobs provided.")
     if len(body.jobs) > MAX_JOBS_PER_REQUEST:
@@ -28,7 +31,7 @@ def score_jobs_endpoint(body: ScoreJobsRequest):
             detail=f"Too many jobs in one request — max {MAX_JOBS_PER_REQUEST}.",
         )
 
-    cv_record = cv_store.fetch_cv(body.cv_id)
+    cv_record = cv_store.fetch_cv(body.cv_id, current_user["id"])
     if cv_record is None:
         raise HTTPException(status_code=404, detail="CV not found.")
 

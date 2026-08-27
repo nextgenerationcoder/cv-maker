@@ -2,11 +2,12 @@ import logging
 import uuid
 from typing import List, Optional
 
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
 import cv_store
+from auth import get_current_user
 from cv_json import build_template_json, json_text_to_profile, profile_to_json
 from cv_models import CVProfile
 
@@ -41,7 +42,9 @@ def download_template():
 
 
 @router.post("/import-json")
-async def import_json(file: UploadFile = File(...)):
+async def import_json(
+    file: UploadFile = File(...), current_user: dict = Depends(get_current_user)
+):
     is_json = (file.content_type == "application/json") or (
         file.filename or ""
     ).lower().endswith(".json")
@@ -72,7 +75,7 @@ async def import_json(file: UploadFile = File(...)):
 
     cv_id = str(uuid.uuid4())
     filename = file.filename or "Imported CV"
-    uploaded_at = cv_store.save_cv(cv_id, filename, profile)
+    uploaded_at = cv_store.save_cv(cv_id, filename, profile, current_user["id"])
 
     return {
         "id": cv_id,
@@ -84,8 +87,8 @@ async def import_json(file: UploadFile = File(...)):
 
 
 @router.get("/{cv_id}/export.json")
-def export_cv_json(cv_id: str):
-    record = cv_store.fetch_cv(cv_id)
+def export_cv_json(cv_id: str, current_user: dict = Depends(get_current_user)):
+    record = cv_store.fetch_cv(cv_id, current_user["id"])
     if record is None:
         raise HTTPException(status_code=404, detail="CV not found.")
     profile = CVProfile.model_validate(record["profile"])
@@ -97,8 +100,8 @@ def export_cv_json(cv_id: str):
 
 
 @router.post("/{cv_id}/gaps")
-def add_gaps(cv_id: str, body: AddGapsRequest):
-    if cv_store.fetch_cv(cv_id) is None:
+def add_gaps(cv_id: str, body: AddGapsRequest, current_user: dict = Depends(get_current_user)):
+    if cv_store.fetch_cv(cv_id, current_user["id"]) is None:
         raise HTTPException(status_code=404, detail="CV not found.")
     items = [t.strip() for t in body.items if t.strip()]
     if not items:
@@ -108,22 +111,26 @@ def add_gaps(cv_id: str, body: AddGapsRequest):
 
 
 @router.get("/{cv_id}/gaps")
-def list_gaps(cv_id: str):
-    if cv_store.fetch_cv(cv_id) is None:
+def list_gaps(cv_id: str, current_user: dict = Depends(get_current_user)):
+    if cv_store.fetch_cv(cv_id, current_user["id"]) is None:
         raise HTTPException(status_code=404, detail="CV not found.")
     return {"gaps": cv_store.list_gaps(cv_id)}
 
 
 @router.delete("/{cv_id}/gaps/{gap_id}")
-def delete_gap(cv_id: str, gap_id: str):
+def delete_gap(cv_id: str, gap_id: str, current_user: dict = Depends(get_current_user)):
+    if cv_store.fetch_cv(cv_id, current_user["id"]) is None:
+        raise HTTPException(status_code=404, detail="CV not found.")
     if not cv_store.delete_gap(cv_id, gap_id):
         raise HTTPException(status_code=404, detail="Gap not found.")
     return {"status": "deleted"}
 
 
 @router.post("/{cv_id}/learning")
-def add_learning_item(cv_id: str, body: AddLearningItemRequest):
-    if cv_store.fetch_cv(cv_id) is None:
+def add_learning_item(
+    cv_id: str, body: AddLearningItemRequest, current_user: dict = Depends(get_current_user)
+):
+    if cv_store.fetch_cv(cv_id, current_user["id"]) is None:
         raise HTTPException(status_code=404, detail="CV not found.")
     text = body.text.strip()
     if not text:
@@ -132,36 +139,46 @@ def add_learning_item(cv_id: str, body: AddLearningItemRequest):
 
 
 @router.get("/{cv_id}/learning")
-def list_learning(cv_id: str):
-    if cv_store.fetch_cv(cv_id) is None:
+def list_learning(cv_id: str, current_user: dict = Depends(get_current_user)):
+    if cv_store.fetch_cv(cv_id, current_user["id"]) is None:
         raise HTTPException(status_code=404, detail="CV not found.")
     return {"items": cv_store.list_learning(cv_id)}
 
 
 @router.delete("/{cv_id}/learning/{item_id}")
-def delete_learning_item(cv_id: str, item_id: str):
+def delete_learning_item(
+    cv_id: str, item_id: str, current_user: dict = Depends(get_current_user)
+):
+    if cv_store.fetch_cv(cv_id, current_user["id"]) is None:
+        raise HTTPException(status_code=404, detail="CV not found.")
     if not cv_store.delete_learning_item(cv_id, item_id):
         raise HTTPException(status_code=404, detail="Learning item not found.")
     return {"status": "deleted"}
 
 
 @router.put("/{cv_id}")
-def update_cv(cv_id: str, body: SaveProfileRequest):
-    updated_at = cv_store.update_cv(cv_id, body.profile, filename=body.filename)
+def update_cv(
+    cv_id: str, body: SaveProfileRequest, current_user: dict = Depends(get_current_user)
+):
+    updated_at = cv_store.update_cv(
+        cv_id, body.profile, current_user["id"], filename=body.filename
+    )
     if updated_at is None:
         raise HTTPException(status_code=404, detail="CV not found.")
-    record = cv_store.fetch_cv(cv_id)
+    record = cv_store.fetch_cv(cv_id, current_user["id"])
     return record
 
 
 @router.get("")
-def list_cvs(limit: int = Query(20, ge=1, le=100)):
-    return {"cvs": cv_store.list_cvs(limit=limit)}
+def list_cvs(
+    limit: int = Query(20, ge=1, le=100), current_user: dict = Depends(get_current_user)
+):
+    return {"cvs": cv_store.list_cvs(current_user["id"], limit=limit)}
 
 
 @router.get("/{cv_id}")
-def get_cv(cv_id: str):
-    record = cv_store.fetch_cv(cv_id)
+def get_cv(cv_id: str, current_user: dict = Depends(get_current_user)):
+    record = cv_store.fetch_cv(cv_id, current_user["id"])
     if record is None:
         raise HTTPException(status_code=404, detail="CV not found.")
     return record

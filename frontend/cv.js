@@ -1,8 +1,4 @@
-// Empty string = relative /api/... requests, correct when served through the
-// nginx container (docker-compose), which proxies /api/ to the backend. For
-// running standalone against a bare `uvicorn` on port 8000, set
-// window.API_BASE = "http://localhost:8000" before this script loads.
-const API_BASE = window.API_BASE || "";
+// API_BASE and authFetch come from auth.js, loaded before this script.
 
 const uploadForm = document.getElementById("cv-upload-form");
 const fileInput = document.getElementById("cv-file");
@@ -376,7 +372,7 @@ uploadForm.addEventListener("submit", async (event) => {
   formData.append("file", file);
 
   try {
-    const response = await fetch(`${API_BASE}/api/cv/import-json`, { method: "POST", body: formData });
+    const response = await authFetch(`${API_BASE}/api/cv/import-json`, { method: "POST", body: formData });
     if (!response.ok) {
       const errorBody = await response.json().catch(() => ({}));
       throw new Error(errorBody.detail || `Request failed with ${response.status}`);
@@ -406,7 +402,7 @@ editForm.addEventListener("submit", async (event) => {
   const profile = buildProfileFromForm();
 
   try {
-    const response = await fetch(`${API_BASE}/api/cv/${currentCvId}`, {
+    const response = await authFetch(`${API_BASE}/api/cv/${currentCvId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ profile, filename }),
@@ -522,7 +518,7 @@ async function addGapToCv(gap, editInput, select, row) {
 
 async function sendGapToLearning(gap, row) {
   try {
-    await fetch(`${API_BASE}/api/cv/${currentCvId}/learning`, {
+    await authFetch(`${API_BASE}/api/cv/${currentCvId}/learning`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: gap.text }),
@@ -536,7 +532,7 @@ async function sendGapToLearning(gap, row) {
 
 async function removeGap(gapId, row) {
   try {
-    await fetch(`${API_BASE}/api/cv/${currentCvId}/gaps/${gapId}`, { method: "DELETE" });
+    await authFetch(`${API_BASE}/api/cv/${currentCvId}/gaps/${gapId}`, { method: "DELETE" });
   } catch {
     // best-effort — remove from view regardless so the UI doesn't get stuck
   }
@@ -547,7 +543,7 @@ async function removeGap(gapId, row) {
 async function loadGaps() {
   if (!currentCvId) return;
   try {
-    const response = await fetch(`${API_BASE}/api/cv/${currentCvId}/gaps`);
+    const response = await authFetch(`${API_BASE}/api/cv/${currentCvId}/gaps`);
     if (!response.ok) return;
     const data = await response.json();
     renderGapsList(data.gaps);
@@ -564,7 +560,7 @@ refreshGapsBtn.addEventListener("click", loadGaps);
   const lastId = localStorage.getItem(LAST_CV_ID_KEY);
   if (!lastId) return;
   try {
-    const response = await fetch(`${API_BASE}/api/cv/${lastId}`);
+    const response = await authFetch(`${API_BASE}/api/cv/${lastId}`);
     if (!response.ok) {
       localStorage.removeItem(LAST_CV_ID_KEY);
       return;
