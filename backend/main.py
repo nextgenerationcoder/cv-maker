@@ -69,6 +69,16 @@ def search_jobs(
         None, description="Only jobs with an easy-apply option (LinkedIn/Indeed)"
     ),
     country_indeed: str = Query("USA", description="Country to search on Indeed/Glassdoor"),
+    include_keywords: Optional[str] = Query(
+        None,
+        description="Comma-separated; keep only jobs whose title/description/company "
+        "contains at least one of these (applied after scraping, not sent to the job board)",
+    ),
+    exclude_keywords: Optional[str] = Query(
+        None,
+        description="Comma-separated; drop jobs whose title/description/company "
+        "contains any of these (applied after scraping, not sent to the job board)",
+    ),
 ):
     invalid_sites = [site for site in site_name if site not in SUPPORTED_SITES]
     if invalid_sites:
@@ -112,5 +122,27 @@ def search_jobs(
     if jobs is None or jobs.empty:
         return {"count": 0, "jobs": []}
 
+    include_terms = _split_keywords(include_keywords)
+    exclude_terms = _split_keywords(exclude_keywords)
+    if include_terms or exclude_terms:
+        jobs = jobs[jobs.apply(lambda row: _keyword_filter(row, include_terms, exclude_terms), axis=1)]
+
     jobs = jobs.where(pd.notnull(jobs), None)
     return {"count": len(jobs), "jobs": jobs.to_dict(orient="records")}
+
+
+def _split_keywords(raw: Optional[str]) -> list[str]:
+    if not raw:
+        return []
+    return [term.strip().lower() for term in raw.split(",") if term.strip()]
+
+
+def _keyword_filter(row: "pd.Series", include_terms: list[str], exclude_terms: list[str]) -> bool:
+    haystack = " ".join(
+        str(row.get(col) or "") for col in ("title", "description", "company")
+    ).lower()
+    if include_terms and not any(term in haystack for term in include_terms):
+        return False
+    if exclude_terms and any(term in haystack for term in exclude_terms):
+        return False
+    return True

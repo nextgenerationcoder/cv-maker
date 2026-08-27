@@ -31,6 +31,16 @@ uvicorn main:app --reload --port 8000
 | `distance` | Search radius in miles from `location` |
 | `easy_apply` | Only jobs with an easy-apply option (LinkedIn/Indeed) |
 | `country_indeed` | Country for Indeed/Glassdoor search (default `USA`) |
+| `include_keywords` | Comma-separated; keep only jobs matching at least one, in title/description/company |
+| `exclude_keywords` | Comma-separated; drop jobs matching any one, in title/description/company |
+
+`include_keywords`/`exclude_keywords` are applied here, after scraping —
+not sent to the job board itself. Job boards don't support this
+consistently (some accept boolean search syntax in `search_term`, most
+don't), so filtering our side works the same regardless of site.
+`description` isn't always populated for every source (e.g. LinkedIn only
+includes it when its full-description fetch is on), so matching falls
+back to title + company when it's missing.
 
 Note: JobSpy does not expose applicant counts — job boards generally don't
 publish that in their public listings, so it isn't something this API can

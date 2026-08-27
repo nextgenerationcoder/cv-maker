@@ -92,6 +92,8 @@ form.addEventListener("submit", async (event) => {
   const distance = document.getElementById("distance").value;
   const isRemote = document.getElementById("is-remote").checked;
   const easyApply = document.getElementById("easy-apply").checked;
+  const includeKeywords = document.getElementById("include-keywords").value.trim();
+  const excludeKeywords = document.getElementById("exclude-keywords").value.trim();
 
   resultsEl.innerHTML = "";
   statusEl.textContent = "Searching...";
@@ -106,6 +108,8 @@ form.addEventListener("submit", async (event) => {
   if (distance) params.set("distance", distance);
   if (isRemote) params.set("is_remote", "true");
   if (easyApply) params.set("easy_apply", "true");
+  if (includeKeywords) params.set("include_keywords", includeKeywords);
+  if (excludeKeywords) params.set("exclude_keywords", excludeKeywords);
 
   try {
     const response = await fetch(`${API_BASE}/api/jobs?${params.toString()}`);

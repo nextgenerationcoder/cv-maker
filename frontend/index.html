@@ -65,8 +65,24 @@
       <label><input type="checkbox" id="is-remote" /> Remote only</label>
       <label><input type="checkbox" id="easy-apply" /> Easy apply only</label>
 
+      <input
+        type="text"
+        id="include-keywords"
+        placeholder="Must include (comma-separated)"
+      />
+      <input
+        type="text"
+        id="exclude-keywords"
+        placeholder="Exclude jobs with (comma-separated)"
+      />
+
       <button type="submit">Search</button>
     </form>
+    <p class="hint keyword-hint">
+      Include/exclude match against each job's title, description, and
+      company — checked after scraping, since most job boards don't
+      support this in their own search.
+    </p>
     <p id="status"></p>
     <ul id="results"></ul>
   </main>

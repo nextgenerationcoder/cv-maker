@@ -99,6 +99,17 @@ body {
   margin-top: -0.5rem;
 }
 
+.keyword-hint {
+  margin: -0.5rem 0 1rem;
+  font-size: 0.8rem;
+}
+
+#include-keywords,
+#exclude-keywords {
+  min-width: 14rem;
+  flex: 1;
+}
+
 .container form.cv-edit-form {
   display: block;
 }
