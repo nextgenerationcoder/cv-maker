@@ -99,48 +99,112 @@ body {
   margin-top: -0.5rem;
 }
 
-.cv-profile h2 {
+.container form.cv-edit-form {
+  display: block;
+}
+
+.cv-edit-form h2 {
   font-size: 1rem;
-  margin: 1.25rem 0 0.5rem;
+  margin: 1.5rem 0 0.5rem;
   border-bottom: 1px solid #eee;
   padding-bottom: 0.25rem;
 }
 
-.cv-profile h2:first-child {
-  margin-top: 0;
+.cv-edit-form h2:first-of-type {
+  margin-top: 1rem;
 }
 
-.tags {
+.container label.field {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
-
-.tag {
-  background: #f1f5f9;
-  border-radius: 999px;
-  padding: 0.2rem 0.7rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.25rem;
   font-size: 0.85rem;
+  color: #444;
+  margin-bottom: 0.6rem;
 }
 
-.entry-list {
-  list-style: none;
-  padding: 0;
+.field span {
+  font-size: 0.8rem;
+  color: #666;
 }
 
-.entry-list > li {
+.field input,
+.field textarea {
+  font-family: inherit;
+  font-size: 0.95rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0 1rem;
+}
+
+.hint-field .hint {
+  margin: 0;
+}
+
+.entry-list-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.entry-card {
   border: 1px solid #ddd;
   border-radius: 6px;
   padding: 0.75rem 1rem;
-  margin-bottom: 0.75rem;
 }
 
-.entry-list > li h3 {
-  margin: 0 0 0.25rem;
+.entry-card .field:last-of-type {
+  margin-bottom: 0.5rem;
+}
+
+.remove-entry {
+  font-size: 0.8rem;
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+  color: #b91c1c;
+}
+
+.add-entry-btn {
+  background: none;
+  border: 1px dashed #999;
+  border-radius: 4px;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.save-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
+.save-bar button {
+  padding: 0.5rem 1.2rem;
   font-size: 1rem;
 }
 
-.entry-list ul {
-  margin: 0.5rem 0 0;
-  padding-left: 1.2rem;
+#save-status {
+  font-size: 0.85rem;
+  color: #666;
 }

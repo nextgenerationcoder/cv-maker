@@ -89,12 +89,23 @@ against a real multi-column resume; known rough edges found there:
   separate company line to detect (e.g. a project title that already
   names the organization).
 
+Given those, every field on the page is editable after upload — fix
+anything the parser got wrong, add/remove entries, then save. You can
+also skip uploading entirely and click "Or start manually" to fill out
+a CV from a blank form.
+
 ### API
 
 - `POST /api/cv/upload` — multipart form, field `file` (PDF, max 15MB).
-  Returns `{id, filename, uploaded_at, profile}`.
-- `GET /api/cv/{id}` — refetch a previously extracted profile.
-- `GET /api/cv?limit=20` — list recent uploads (id/filename/uploaded_at only).
+  Returns `{id, filename, uploaded_at, updated_at, profile}`.
+- `POST /api/cv/manual` — JSON body `{filename?, profile}`, creates a new
+  entry without a PDF. Same response shape as `/upload`.
+- `PUT /api/cv/{id}` — JSON body `{filename?, profile}`, overwrites a
+  stored entry (used to save edits to either an uploaded or manual CV).
+  404 if the id doesn't exist.
+- `GET /api/cv/{id}` — refetch a stored profile.
+- `GET /api/cv?limit=20` — list recent entries (id/filename/uploaded_at/
+  updated_at only).
 
 ### Storage
 

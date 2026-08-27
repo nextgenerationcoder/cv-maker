@@ -15,17 +15,78 @@
     <h1>Upload CV</h1>
     <p class="hint">
       Upload your CV as a PDF and it'll be scanned to pull out your skills,
-      education, work experience, languages, likely target roles, and
-      technical knowledge.
+      education, work experience, languages, preferred roles, and technical
+      knowledge — parsed locally, no API involved. The parser isn't
+      perfect, so everything below is editable before you save it.
     </p>
 
     <form id="cv-upload-form">
-      <input type="file" id="cv-file" accept="application/pdf,.pdf" required />
+      <input type="file" id="cv-file" accept="application/pdf,.pdf" />
       <button type="submit">Upload &amp; Extract</button>
+      <button type="button" id="manual-entry-btn">Or start manually</button>
     </form>
     <p id="cv-status"></p>
 
-    <section id="cv-profile" class="cv-profile" hidden></section>
+    <form id="cv-edit-form" class="cv-edit-form" hidden>
+      <label class="field">
+        <span>CV name</span>
+        <input type="text" data-field="filename" placeholder="e.g. My CV" />
+      </label>
+
+      <h2>Contact</h2>
+      <div class="field-grid">
+        <label class="field"><span>Name</span><input type="text" data-field="contact.name" /></label>
+        <label class="field"><span>Email</span><input type="text" data-field="contact.email" /></label>
+        <label class="field"><span>Phone</span><input type="text" data-field="contact.phone" /></label>
+        <label class="field"><span>Location</span><input type="text" data-field="contact.location" /></label>
+        <label class="field"><span>LinkedIn</span><input type="text" data-field="contact.linkedin" /></label>
+        <label class="field"><span>Website</span><input type="text" data-field="contact.website" /></label>
+      </div>
+
+      <h2>Summary</h2>
+      <label class="field"><textarea data-field="summary" rows="3"></textarea></label>
+
+      <h2>Preferred roles</h2>
+      <label class="field hint-field">
+        <span class="hint">One per line</span>
+        <textarea data-field="preferred_roles" rows="2"></textarea>
+      </label>
+
+      <h2>Skills</h2>
+      <label class="field hint-field">
+        <span class="hint">One per line</span>
+        <textarea data-field="skills" rows="3"></textarea>
+      </label>
+
+      <h2>Technical knowledge</h2>
+      <label class="field hint-field">
+        <span class="hint">One per line</span>
+        <textarea data-field="technical_knowledge" rows="3"></textarea>
+      </label>
+
+      <h2>Certifications</h2>
+      <label class="field hint-field">
+        <span class="hint">One per line</span>
+        <textarea data-field="certifications" rows="2"></textarea>
+      </label>
+
+      <h2>Work experience</h2>
+      <div id="work-entries" class="entry-list-edit"></div>
+      <button type="button" class="add-entry-btn" data-add="work">+ Add work experience</button>
+
+      <h2>Education</h2>
+      <div id="education-entries" class="entry-list-edit"></div>
+      <button type="button" class="add-entry-btn" data-add="education">+ Add education</button>
+
+      <h2>Languages</h2>
+      <div id="language-entries" class="entry-list-edit"></div>
+      <button type="button" class="add-entry-btn" data-add="language">+ Add language</button>
+
+      <div class="save-bar">
+        <button type="submit">Save changes</button>
+        <span id="save-status"></span>
+      </div>
+    </form>
   </main>
   <script src="cv.js"></script>
 </body>
