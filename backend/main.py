@@ -1,9 +1,12 @@
+import logging
 from typing import Optional
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from jobspy import scrape_jobs
+
+logger = logging.getLogger("cv_maker.jobs")
 
 app = FastAPI(title="CV Maker Job Scraper API")
 
@@ -58,7 +61,11 @@ def search_jobs(
     try:
         jobs: pd.DataFrame = scrape_jobs(**scrape_kwargs)
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Job scrape failed: {exc}") from exc
+        logger.exception("Job scrape failed for search_term=%r site_name=%r", search_term, site_name)
+        raise HTTPException(
+            status_code=502,
+            detail="Job scrape failed. The job board may be temporarily unavailable or blocking requests — try again shortly.",
+        ) from exc
 
     if jobs is None or jobs.empty:
         return {"count": 0, "jobs": []}
