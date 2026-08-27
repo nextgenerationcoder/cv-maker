@@ -9,6 +9,7 @@ body {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+  align-items: center;
   margin-bottom: 1rem;
 }
 
@@ -17,6 +18,23 @@ body {
 .container button {
   padding: 0.5rem;
   font-size: 1rem;
+}
+
+.container input[type="number"] {
+  width: 8rem;
+}
+
+.container label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+}
+
+#results .meta {
+  color: #666;
+  font-size: 0.85rem;
+  margin: 0 0 0.25rem;
 }
 
 #results {

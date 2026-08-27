@@ -18,6 +18,18 @@ app.add_middleware(
 )
 
 SUPPORTED_SITES = ["indeed", "linkedin", "zip_recruiter", "glassdoor", "google"]
+SUPPORTED_JOB_TYPES = [
+    "fulltime",
+    "parttime",
+    "contract",
+    "temporary",
+    "internship",
+    "perdiem",
+    "nights",
+    "other",
+    "summer",
+    "volunteer",
+]
 
 
 @app.get("/api/health")
@@ -37,6 +49,15 @@ def search_jobs(
         None, description="Only return jobs posted within this many hours"
     ),
     is_remote: Optional[bool] = Query(None),
+    job_type: Optional[str] = Query(
+        None, description=f"One of: {SUPPORTED_JOB_TYPES}"
+    ),
+    distance: Optional[int] = Query(
+        None, ge=0, description="Search radius in miles from location"
+    ),
+    easy_apply: Optional[bool] = Query(
+        None, description="Only jobs with an easy-apply option (LinkedIn/Indeed)"
+    ),
     country_indeed: str = Query("USA", description="Country to search on Indeed/Glassdoor"),
 ):
     invalid_sites = [site for site in site_name if site not in SUPPORTED_SITES]
@@ -44,6 +65,11 @@ def search_jobs(
         raise HTTPException(
             status_code=400,
             detail=f"Unsupported site(s): {invalid_sites}. Supported: {SUPPORTED_SITES}",
+        )
+    if job_type is not None and job_type not in SUPPORTED_JOB_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported job_type: {job_type}. Supported: {SUPPORTED_JOB_TYPES}",
         )
 
     scrape_kwargs = {
@@ -57,6 +83,12 @@ def search_jobs(
         scrape_kwargs["hours_old"] = hours_old
     if is_remote is not None:
         scrape_kwargs["is_remote"] = is_remote
+    if job_type is not None:
+        scrape_kwargs["job_type"] = job_type
+    if distance is not None:
+        scrape_kwargs["distance"] = distance
+    if easy_apply is not None:
+        scrape_kwargs["easy_apply"] = easy_apply
 
     try:
         jobs: pd.DataFrame = scrape_jobs(**scrape_kwargs)

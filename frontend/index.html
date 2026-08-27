@@ -19,6 +19,30 @@
         <option value="glassdoor">Glassdoor</option>
         <option value="google">Google</option>
       </select>
+
+      <select id="hours-old">
+        <option value="" selected>Posted anytime</option>
+        <option value="24">Last 24 hours</option>
+        <option value="72">Last 3 days</option>
+        <option value="168">Last week</option>
+        <option value="720">Last month</option>
+      </select>
+
+      <select id="job-type">
+        <option value="" selected>Any job type</option>
+        <option value="fulltime">Full-time</option>
+        <option value="parttime">Part-time</option>
+        <option value="contract">Contract</option>
+        <option value="temporary">Temporary</option>
+        <option value="internship">Internship</option>
+        <option value="volunteer">Volunteer</option>
+      </select>
+
+      <input type="number" id="distance" placeholder="Distance (miles)" min="0" />
+
+      <label><input type="checkbox" id="is-remote" /> Remote only</label>
+      <label><input type="checkbox" id="easy-apply" /> Easy apply only</label>
+
       <button type="submit">Search</button>
     </form>
     <p id="status"></p>

@@ -27,7 +27,14 @@ uvicorn main:app --reload --port 8000
 | `results_wanted` | Max results per site (default 20) |
 | `hours_old` | Only jobs posted within this many hours |
 | `is_remote` | Filter to remote jobs |
+| `job_type` | One of `fulltime`, `parttime`, `contract`, `temporary`, `internship`, `perdiem`, `nights`, `other`, `summer`, `volunteer` |
+| `distance` | Search radius in miles from `location` |
+| `easy_apply` | Only jobs with an easy-apply option (LinkedIn/Indeed) |
 | `country_indeed` | Country for Indeed/Glassdoor search (default `USA`) |
+
+Note: JobSpy does not expose applicant counts — job boards generally don't
+publish that in their public listings, so it isn't something this API can
+filter or return.
 
 Example:
 
