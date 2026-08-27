@@ -70,49 +70,49 @@ GET /api/jobs?search_term=software+engineer&location=Remote&site_name=indeed&sit
 results. Open it directly in a browser (with the backend running on
 `localhost:8000`), or serve it with any static file server.
 
-## CV upload & extraction
+## CV import (CSV)
 
-`frontend/cv.html` lets you upload a CV as a PDF; the backend parses it
-locally (`cv_parser.py`) — no external API, no API key, no cost — to
-extract a structured profile: contact info, summary, skills, technical
-knowledge, education, work experience, languages, preferred roles, and
-certifications. The result is stored in SQLite and returned to the page.
+Earlier versions tried two things that turned out badly: a local
+regex/PDF-layout parser (unreliable on real-world resumes) and a blank
+manual-entry form (tedious, redundant). Both are gone. The flow now:
 
-This is a rule-based parser (PDF text extraction via `pdfplumber` in
-layout-preserving mode, then section-header detection + regex/keyword
-heuristics), not an LLM — it works well on CVs with clear, conventional
-section headers (English or German) and date-anchored entries, but will
-do noticeably worse on unusual layouts, free-flowing prose, or
-scanned/image-only PDFs (no embedded text to read). Tested end-to-end
-against a real multi-column resume; known rough edges found there:
+1. Download the CSV template from `frontend/cv.html` (or `GET
+   /api/cv/template.csv` directly).
+2. Give the template + your resume to whatever AI assistant you like
+   (ChatGPT, Claude, etc. — outside this app) and ask it to fill the
+   template in. The page shows a ready-to-copy example prompt.
+3. Upload the completed CSV. The backend parses it with plain
+   `csv.DictReader` — no AI call, no PDF-layout guessing on our side —
+   and stores the result in SQLite.
 
-- `preferred_roles` falls back to the most recent job title(s) when
-  there's no explicit "target role" section — it's a guess, not real
-  inference.
-- An entry whose date range uses a shared year across two months (e.g.
-  "March – May 2026") isn't recognized as an entry boundary and merges
-  into the previous entry — only a range with a year on both ends is.
-- A skill/tool value that word-wraps across two lines inside an inline
-  "Label: item, item, item" block (rather than its own bullet line) can
-  split awkwardly at the wrap point.
-- `work_experience[].company` is `"Unknown"` when an entry has no
-  separate company line to detect (e.g. a project title that already
-  names the organization).
+The CSV is a flat "long" table rather than one row per profile, because a
+variable number of jobs/degrees/languages doesn't map onto fixed columns.
+Every row has 7 columns — `type,field1,field2,field3,field4,field5,field6`
+— and `type` says what the row is (`contact`, `summary`, `skill`,
+`technical`, `education`, `work`, `language`, `preferred_role`,
+`certification`); unused `field*` columns are left blank. Multiple values
+in one cell (e.g. `work` responsibilities) are `;`-separated. This shape
+is deliberately simple: any LLM can produce it reliably, and our parser
+never has to guess at structure the way the old PDF parser did.
 
-Given those, every field on the page is editable after upload — fix
-anything the parser got wrong, add/remove entries, then save. You can
-also skip uploading entirely and click "Or start manually" to fill out
-a CV from a blank form.
+A malformed or unrecognized row doesn't fail the whole import — it's
+skipped and reported back as a warning, so one mistake from your LLM
+doesn't sink the rest of the file. Every field is still editable on the
+page after import (fix anything, add/remove entries) before you save.
 
 ### API
 
-- `POST /api/cv/upload` — multipart form, field `file` (PDF, max 15MB).
-  Returns `{id, filename, uploaded_at, updated_at, profile}`.
-- `POST /api/cv/manual` — JSON body `{filename?, profile}`, creates a new
-  entry without a PDF. Same response shape as `/upload`.
+- `GET /api/cv/template.csv` — downloads the blank template with example
+  rows.
+- `POST /api/cv/import-csv` — multipart form, field `file` (CSV, max
+  2MB). Returns `{id, filename, uploaded_at, updated_at, profile,
+  warnings}` — `warnings` lists any skipped rows.
+- `GET /api/cv/{id}/export.csv` — re-export a stored profile back to the
+  same CSV shape (round-trips through an LLM again if you want another
+  editing pass).
 - `PUT /api/cv/{id}` — JSON body `{filename?, profile}`, overwrites a
-  stored entry (used to save edits to either an uploaded or manual CV).
-  404 if the id doesn't exist.
+  stored entry (saves edits made on the page). 404 if the id doesn't
+  exist.
 - `GET /api/cv/{id}` — refetch a stored profile.
 - `GET /api/cv?limit=20` — list recent entries (id/filename/uploaded_at/
   updated_at only).

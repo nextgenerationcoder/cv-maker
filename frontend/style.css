@@ -297,3 +297,43 @@ body {
   font-size: 0.85rem;
   color: #666;
 }
+
+.csv-steps {
+  padding-left: 1.2rem;
+  margin: 0.5rem 0 1rem;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.csv-steps li {
+  margin-bottom: 0.6rem;
+}
+
+.prompt-example {
+  margin: 0.4rem 0 0;
+  padding: 0.5rem 0.75rem;
+  background: #f8fafc;
+  border-left: 3px solid #ccc;
+  font-size: 0.85rem;
+  color: #444;
+}
+
+.prompt-example code {
+  background: #eef2f7;
+  padding: 0 0.2rem;
+  border-radius: 3px;
+  font-size: 0.8rem;
+}
+
+.cv-warnings {
+  font-size: 0.85rem;
+  color: #92400e;
+  background: #fef3c7;
+  border-radius: 6px;
+  padding: 0.5rem 1rem 0.5rem 1.5rem;
+  margin: 0 0 1rem;
+}
+
+#export-csv-link {
+  font-size: 0.9rem;
+}

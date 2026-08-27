@@ -13,19 +13,32 @@
       <a href="cv.html" class="active">Upload CV</a>
     </nav>
     <h1>Upload CV</h1>
-    <p class="hint">
-      Upload your CV as a PDF and it'll be scanned to pull out your skills,
-      education, work experience, languages, preferred roles, and technical
-      knowledge — parsed locally, no API involved. The parser isn't
-      perfect, so everything below is editable before you save it.
-    </p>
+    <ol class="csv-steps">
+      <li>
+        <a id="download-template-link" href="#" download="cv_template.csv">Download the CSV template</a>
+      </li>
+      <li>
+        Give it to an AI assistant (ChatGPT, Claude, etc.) along with your
+        resume, and ask it to fill in the template — for example:
+        <blockquote class="prompt-example">
+          "Here's a CSV template for a resume and my resume text/file. Fill
+          in the template with my information: keep the header row and the
+          <code>type</code> column values exactly as shown, add as many
+          <code>skill</code>/<code>technical</code>/<code>education</code>/
+          <code>work</code>/<code>language</code>/<code>preferred_role</code>/
+          <code>certification</code> rows as needed, and give me back the
+          completed CSV file."
+        </blockquote>
+      </li>
+      <li>Upload the completed CSV below.</li>
+    </ol>
 
     <form id="cv-upload-form">
-      <input type="file" id="cv-file" accept="application/pdf,.pdf" />
-      <button type="submit">Upload &amp; Extract</button>
-      <button type="button" id="manual-entry-btn">Or start manually</button>
+      <input type="file" id="cv-file" accept="text/csv,.csv" />
+      <button type="submit">Import CSV</button>
     </form>
     <p id="cv-status"></p>
+    <ul id="cv-warnings" class="cv-warnings" hidden></ul>
 
     <form id="cv-edit-form" class="cv-edit-form" hidden>
       <label class="field">
@@ -84,6 +97,7 @@
 
       <div class="save-bar">
         <button type="submit">Save changes</button>
+        <a id="export-csv-link" href="#" hidden>Export as CSV</a>
         <span id="save-status"></span>
       </div>
     </form>

@@ -6,16 +6,20 @@ const API_BASE = window.API_BASE || "";
 
 const uploadForm = document.getElementById("cv-upload-form");
 const fileInput = document.getElementById("cv-file");
-const manualBtn = document.getElementById("manual-entry-btn");
 const statusEl = document.getElementById("cv-status");
+const warningsEl = document.getElementById("cv-warnings");
+const downloadTemplateLink = document.getElementById("download-template-link");
 
 const editForm = document.getElementById("cv-edit-form");
 const saveStatusEl = document.getElementById("save-status");
+const exportCsvLink = document.getElementById("export-csv-link");
 const workEntriesEl = document.getElementById("work-entries");
 const educationEntriesEl = document.getElementById("education-entries");
 const languageEntriesEl = document.getElementById("language-entries");
 
 let currentCvId = null;
+
+downloadTemplateLink.href = `${API_BASE}/api/cv/template.csv`;
 
 const WORK_FIELDS = [
   { key: "title", label: "Title", required: true },
@@ -39,20 +43,6 @@ const LANGUAGE_FIELDS = [
   { key: "name", label: "Language", required: true },
   { key: "proficiency", label: "Proficiency" },
 ];
-
-function emptyProfile() {
-  return {
-    contact: { name: "", email: "", phone: "", location: "", linkedin: "", website: "" },
-    summary: "",
-    skills: [],
-    technical_knowledge: [],
-    education: [],
-    work_experience: [],
-    languages: [],
-    preferred_roles: [],
-    certifications: [],
-  };
-}
 
 function makeEntryCard(fieldsSpec, values) {
   const card = document.createElement("div");
@@ -180,36 +170,41 @@ uploadForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const file = fileInput.files[0];
   if (!file) {
-    statusEl.textContent = "Choose a PDF file first.";
+    statusEl.textContent = "Choose a CSV file first.";
     return;
   }
 
-  statusEl.textContent = "Extracting your CV… this can take a bit.";
+  statusEl.textContent = "Importing…";
+  warningsEl.hidden = true;
+  warningsEl.innerHTML = "";
   editForm.hidden = true;
 
   const formData = new FormData();
   formData.append("file", file);
 
   try {
-    const response = await fetch(`${API_BASE}/api/cv/upload`, { method: "POST", body: formData });
+    const response = await fetch(`${API_BASE}/api/cv/import-csv`, { method: "POST", body: formData });
     if (!response.ok) {
       const errorBody = await response.json().catch(() => ({}));
       throw new Error(errorBody.detail || `Request failed with ${response.status}`);
     }
     const data = await response.json();
     currentCvId = data.id;
-    statusEl.textContent = `Extracted from ${data.filename}. Review and edit below, then save.`;
+    statusEl.textContent = `Imported ${data.filename}. Review and edit below, then save.`;
+    if (data.warnings && data.warnings.length) {
+      warningsEl.hidden = false;
+      for (const w of data.warnings) {
+        const li = document.createElement("li");
+        li.textContent = w;
+        warningsEl.appendChild(li);
+      }
+    }
     loadProfileIntoForm(data.filename, data.profile);
+    exportCsvLink.href = `${API_BASE}/api/cv/${currentCvId}/export.csv`;
+    exportCsvLink.hidden = false;
   } catch (err) {
     statusEl.textContent = `Error: ${err.message}`;
   }
-});
-
-manualBtn.addEventListener("click", () => {
-  currentCvId = null;
-  fileInput.value = "";
-  statusEl.textContent = "Starting a new CV — fill in what you'd like, then save.";
-  loadProfileIntoForm("", emptyProfile());
 });
 
 for (const btn of document.querySelectorAll(".add-entry-btn")) {
@@ -223,16 +218,18 @@ for (const btn of document.querySelectorAll(".add-entry-btn")) {
 
 editForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (!currentCvId) {
+    saveStatusEl.textContent = "Import a CSV first.";
+    return;
+  }
   saveStatusEl.textContent = "Saving…";
 
   const filename = readTextField("filename") || "Untitled CV";
   const profile = buildProfileFromForm();
-  const isUpdate = Boolean(currentCvId);
-  const url = isUpdate ? `${API_BASE}/api/cv/${currentCvId}` : `${API_BASE}/api/cv/manual`;
 
   try {
-    const response = await fetch(url, {
-      method: isUpdate ? "PUT" : "POST",
+    const response = await fetch(`${API_BASE}/api/cv/${currentCvId}`, {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ profile, filename }),
     });
@@ -240,9 +237,9 @@ editForm.addEventListener("submit", async (event) => {
       const errorBody = await response.json().catch(() => ({}));
       throw new Error(errorBody.detail || `Request failed with ${response.status}`);
     }
-    const data = await response.json();
-    currentCvId = data.id;
     saveStatusEl.textContent = "Saved.";
+    exportCsvLink.href = `${API_BASE}/api/cv/${currentCvId}/export.csv`;
+    exportCsvLink.hidden = false;
   } catch (err) {
     saveStatusEl.textContent = `Error: ${err.message}`;
   }

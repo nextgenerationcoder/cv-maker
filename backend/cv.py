@@ -3,17 +3,18 @@ import uuid
 from typing import Optional
 
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
 import cv_store
+from cv_csv import build_template_csv, csv_text_to_profile, profile_to_csv
 from cv_models import CVProfile
-from cv_parser import extract_cv_profile
 
 logger = logging.getLogger("cv_maker.cv")
 
 router = APIRouter(prefix="/api/cv", tags=["cv"])
 
-MAX_CV_BYTES = 15 * 1024 * 1024  # 15MB
+MAX_CSV_BYTES = 2 * 1024 * 1024  # 2MB
 
 
 class SaveProfileRequest(BaseModel):
@@ -21,59 +22,70 @@ class SaveProfileRequest(BaseModel):
     filename: Optional[str] = None
 
 
-@router.post("/upload")
-async def upload_cv(file: UploadFile = File(...)):
-    is_pdf = (file.content_type == "application/pdf") or (
-        file.filename or ""
-    ).lower().endswith(".pdf")
-    if not is_pdf:
-        raise HTTPException(status_code=400, detail="Only PDF files are supported.")
+@router.get("/template.csv")
+def download_template():
+    return PlainTextResponse(
+        build_template_csv(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=cv_template.csv"},
+    )
 
-    pdf_bytes = await file.read()
-    if not pdf_bytes:
+
+@router.post("/import-csv")
+async def import_csv(file: UploadFile = File(...)):
+    is_csv = (file.content_type in ("text/csv", "application/vnd.ms-excel")) or (
+        file.filename or ""
+    ).lower().endswith(".csv")
+    if not is_csv:
+        raise HTTPException(status_code=400, detail="Only CSV files are supported.")
+
+    raw = await file.read()
+    if not raw:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
-    if len(pdf_bytes) > MAX_CV_BYTES:
+    if len(raw) > MAX_CSV_BYTES:
         raise HTTPException(
             status_code=400,
-            detail=f"File too large — max {MAX_CV_BYTES // (1024 * 1024)}MB.",
+            detail=f"File too large — max {MAX_CSV_BYTES // (1024 * 1024)}MB.",
         )
 
     try:
-        profile = extract_cv_profile(pdf_bytes)
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        raise HTTPException(status_code=400, detail="Couldn't read this file as UTF-8 text.")
+
+    try:
+        profile, warnings = csv_text_to_profile(text)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     except Exception:
-        logger.exception("CV extraction failed for filename=%r", file.filename)
-        raise HTTPException(
-            status_code=500,
-            detail="Couldn't parse this CV. It may use a layout this parser doesn't handle.",
-        )
+        logger.exception("CSV import failed for filename=%r", file.filename)
+        raise HTTPException(status_code=422, detail="Couldn't parse this CSV file.")
 
     cv_id = str(uuid.uuid4())
-    uploaded_at = cv_store.save_cv(cv_id, file.filename or "cv.pdf", profile)
-
-    return {
-        "id": cv_id,
-        "filename": file.filename,
-        "uploaded_at": uploaded_at,
-        "updated_at": uploaded_at,
-        "profile": profile.model_dump(),
-    }
-
-
-@router.post("/manual")
-def create_cv_manually(body: SaveProfileRequest):
-    cv_id = str(uuid.uuid4())
-    filename = body.filename or "Manual entry"
-    uploaded_at = cv_store.save_cv(cv_id, filename, body.profile)
+    filename = file.filename or "Imported CV"
+    uploaded_at = cv_store.save_cv(cv_id, filename, profile)
 
     return {
         "id": cv_id,
         "filename": filename,
         "uploaded_at": uploaded_at,
         "updated_at": uploaded_at,
-        "profile": body.profile.model_dump(),
+        "profile": profile.model_dump(),
+        "warnings": warnings,
     }
+
+
+@router.get("/{cv_id}/export.csv")
+def export_cv_csv(cv_id: str):
+    record = cv_store.fetch_cv(cv_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="CV not found.")
+    profile = CVProfile.model_validate(record["profile"])
+    return PlainTextResponse(
+        profile_to_csv(profile),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={record['filename']}.csv"},
+    )
 
 
 @router.put("/{cv_id}")
