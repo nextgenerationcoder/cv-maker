@@ -59,9 +59,18 @@ urlForm.addEventListener("submit", (event) => {
     }
   }
 
+  const isSemanticSearch =
+    parsed.pathname.includes("search-results") ||
+    (params.get("origin") || "").toUpperCase().includes("SEMANTIC_SEARCH");
+
   if (!keywords && !location) {
     urlStatusEl.textContent =
       "No search filters found in that URL — form left as-is where nothing matched.";
+  } else if (isSemanticSearch) {
+    urlStatusEl.textContent =
+      "This looks like a LinkedIn AI-search link — the full text was put in the search box, " +
+      "but it'll be matched as plain keywords (things like \"less than 3 applicants\" won't be " +
+      "understood as a filter). Edit the box if you want a cleaner keyword search.";
   } else {
     urlStatusEl.textContent = "Form filled from URL. Review and hit Search.";
   }
