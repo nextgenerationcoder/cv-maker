@@ -1,0 +1,40 @@
+body {
+  font-family: system-ui, sans-serif;
+  max-width: 720px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+.container form {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.container input,
+.container select,
+.container button {
+  padding: 0.5rem;
+  font-size: 1rem;
+}
+
+#results {
+  list-style: none;
+  padding: 0;
+}
+
+#results li {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+#results li h3 {
+  margin: 0 0 0.25rem;
+}
+
+#results li a {
+  color: #2563eb;
+}

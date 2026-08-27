@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CV Maker - Job Search</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="container">
+    <h1>Job Search</h1>
+    <form id="search-form">
+      <input type="text" id="search-term" placeholder="Job title or keywords" required />
+      <input type="text" id="location" placeholder="Location (optional)" />
+      <select id="site-name">
+        <option value="indeed" selected>Indeed</option>
+        <option value="linkedin">LinkedIn</option>
+        <option value="zip_recruiter">ZipRecruiter</option>
+        <option value="glassdoor">Glassdoor</option>
+        <option value="google">Google</option>
+      </select>
+      <button type="submit">Search</button>
+    </form>
+    <p id="status"></p>
+    <ul id="results"></ul>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
