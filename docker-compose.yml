@@ -2,6 +2,11 @@ services:
   backend:
     build: ./backend
     restart: always
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - CV_DB_PATH=/data/cv.db
+    volumes:
+      - cv_data:/data
     networks:
       - n8n-compose_default
     # Internal only — reached by the frontend container over the shared
@@ -23,3 +28,6 @@ services:
 networks:
   n8n-compose_default:
     external: true
+
+volumes:
+  cv_data:

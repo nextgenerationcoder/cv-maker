@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CV Maker - Upload CV</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="container">
+    <nav class="top-nav">
+      <a href="index.html">Job Search</a>
+      <a href="cv.html" class="active">Upload CV</a>
+    </nav>
+    <h1>Upload CV</h1>
+    <p class="hint">
+      Upload your CV as a PDF and it'll be scanned to pull out your skills,
+      education, work experience, languages, likely target roles, and
+      technical knowledge.
+    </p>
+
+    <form id="cv-upload-form">
+      <input type="file" id="cv-file" accept="application/pdf,.pdf" required />
+      <button type="submit">Upload &amp; Extract</button>
+    </form>
+    <p id="cv-status"></p>
+
+    <section id="cv-profile" class="cv-profile" hidden></section>
+  </main>
+  <script src="cv.js"></script>
+</body>
+</html>

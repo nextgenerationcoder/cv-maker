@@ -6,6 +6,9 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from jobspy import scrape_jobs
 
+import cv_store
+from cv import router as cv_router
+
 logger = logging.getLogger("cv_maker.jobs")
 
 app = FastAPI(title="CV Maker Job Scraper API")
@@ -16,6 +19,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(cv_router)
+
+
+@app.on_event("startup")
+def _init_cv_db() -> None:
+    cv_store.init_db()
 
 SUPPORTED_SITES = ["indeed", "linkedin", "zip_recruiter", "glassdoor", "google"]
 SUPPORTED_JOB_TYPES = [

@@ -59,3 +59,30 @@ GET /api/jobs?search_term=software+engineer&location=Remote&site_name=indeed&sit
 `frontend/index.html` is a minimal static page that calls the API and lists
 results. Open it directly in a browser (with the backend running on
 `localhost:8000`), or serve it with any static file server.
+
+## CV upload & extraction
+
+`frontend/cv.html` lets you upload a CV as a PDF; the backend sends it to
+Claude (`claude-opus-5`, via native PDF document input + structured output)
+to extract a structured profile — contact info, summary, skills, technical
+knowledge, education, work experience, languages, likely preferred roles
+(inferred from the CV's summary/trajectory if not stated outright), and
+certifications. The result is stored in SQLite and returned to the page.
+
+Requires `ANTHROPIC_API_KEY` set in the backend's environment (copy
+`.env.example` to `.env` and fill in your key — `docker-compose.yml` reads
+it from there automatically; for local `uvicorn` runs, `export` it or use a
+tool like `direnv`).
+
+### API
+
+- `POST /api/cv/upload` — multipart form, field `file` (PDF, max 15MB).
+  Returns `{id, filename, uploaded_at, profile}`.
+- `GET /api/cv/{id}` — refetch a previously extracted profile.
+- `GET /api/cv?limit=20` — list recent uploads (id/filename/uploaded_at only).
+
+### Storage
+
+SQLite, path from `CV_DB_PATH` (default `./cv_profiles.db`; the Docker setup
+points it at `/data/cv.db` on a named volume, `cv_data`, so uploads survive
+container rebuilds).

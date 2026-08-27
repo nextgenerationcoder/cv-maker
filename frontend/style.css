@@ -73,3 +73,74 @@ body {
 #results li a {
   color: #2563eb;
 }
+
+.top-nav {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #ddd;
+}
+
+.top-nav a {
+  color: #666;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.top-nav a.active {
+  color: #111;
+  font-weight: 600;
+}
+
+.hint {
+  color: #666;
+  font-size: 0.9rem;
+  margin-top: -0.5rem;
+}
+
+.cv-profile h2 {
+  font-size: 1rem;
+  margin: 1.25rem 0 0.5rem;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 0.25rem;
+}
+
+.cv-profile h2:first-child {
+  margin-top: 0;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.tag {
+  background: #f1f5f9;
+  border-radius: 999px;
+  padding: 0.2rem 0.7rem;
+  font-size: 0.85rem;
+}
+
+.entry-list {
+  list-style: none;
+  padding: 0;
+}
+
+.entry-list > li {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.entry-list > li h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+.entry-list ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1.2rem;
+}
