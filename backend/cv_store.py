@@ -1,6 +1,7 @@
 import json
 import os
 import sqlite3
+import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -28,6 +29,18 @@ def _connect() -> sqlite3.Connection:
         conn.commit()
     except sqlite3.OperationalError:
         pass  # column already exists — fine on every run after the first
+
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS cv_gaps (
+            id TEXT PRIMARY KEY,
+            cv_id TEXT NOT NULL,
+            text TEXT NOT NULL,
+            source TEXT,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
     return conn
 
 
@@ -102,3 +115,45 @@ def list_cvs(limit: int = 20) -> list[dict]:
     return [
         {"id": r[0], "filename": r[1], "uploaded_at": r[2], "updated_at": r[3]} for r in rows
     ]
+
+
+def add_gaps(cv_id: str, texts: list[str], source: Optional[str] = None) -> list[dict]:
+    now = datetime.now(timezone.utc).isoformat()
+    conn = _connect()
+    created = []
+    try:
+        for text in texts:
+            gap_id = str(uuid.uuid4())
+            conn.execute(
+                "INSERT INTO cv_gaps (id, cv_id, text, source, created_at) VALUES (?, ?, ?, ?, ?)",
+                (gap_id, cv_id, text, source, now),
+            )
+            created.append({"id": gap_id, "cv_id": cv_id, "text": text, "source": source, "created_at": now})
+        conn.commit()
+    finally:
+        conn.close()
+    return created
+
+
+def list_gaps(cv_id: str) -> list[dict]:
+    conn = _connect()
+    try:
+        rows = conn.execute(
+            "SELECT id, cv_id, text, source, created_at FROM cv_gaps WHERE cv_id = ? ORDER BY created_at DESC",
+            (cv_id,),
+        ).fetchall()
+    finally:
+        conn.close()
+    return [
+        {"id": r[0], "cv_id": r[1], "text": r[2], "source": r[3], "created_at": r[4]} for r in rows
+    ]
+
+
+def delete_gap(cv_id: str, gap_id: str) -> bool:
+    conn = _connect()
+    try:
+        cur = conn.execute("DELETE FROM cv_gaps WHERE id = ? AND cv_id = ?", (gap_id, cv_id))
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()

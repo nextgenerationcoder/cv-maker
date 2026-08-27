@@ -186,10 +186,41 @@ body {
   margin: 0.25rem 0;
 }
 
-.score-missing {
+.missing-gaps {
+  background: #fff7f7;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  margin: 0.4rem 0;
+}
+
+.missing-label {
   font-size: 0.8rem;
   color: #991b1b;
-  margin: 0 0 0.25rem;
+  margin: 0 0 0.3rem;
+  font-weight: 600;
+}
+
+.missing-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+}
+
+.missing-list li {
+  margin-bottom: 0.2rem;
+}
+
+.save-gaps-btn {
+  font-size: 0.8rem;
+  padding: 0.3rem 0.6rem;
+}
+
+.gaps-status {
+  font-size: 0.8rem;
+  color: #666;
+  margin-left: 0.5rem;
 }
 
 .cv-edit-form h2 {
@@ -391,4 +422,43 @@ body {
   padding: 0.35rem 0.5rem;
   border: 1px solid #ccc;
   border-radius: 4px;
+}
+
+#gaps-section {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: #2563eb;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: inherit;
+  padding: 0;
+  margin-left: 0.3rem;
+}
+
+.gap-row {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.gap-text {
+  font-size: 0.9rem;
+  margin: 0 0 0.5rem;
+}
+
+.gap-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.gap-category-select {
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
 }

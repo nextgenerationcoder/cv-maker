@@ -152,3 +152,30 @@ work fine without it.
   `{scores: [{id, score, reasoning, missing_requirements}, ...]}`, keyed
   back to the `id` you sent so the frontend can match by array index
   rather than relying on response order.
+
+## Missing experiences (gap review)
+
+Each `missing_requirements` item from a job check gets a checkbox next to
+it. Select the ones you actually have real experience with (the model
+doesn't know that — it's only judging from what's already in your CV) and
+click "Add selected to CV gaps" to save them, tagged with which job
+surfaced them. They don't touch your CV automatically.
+
+On the Upload CV page, a "Missing experiences" section lists everything
+pending: for each one, pick an existing tool category (or type a new one)
+and click "Add to CV" to insert it as a tool/skill in that category, or
+"Dismiss" to discard it without adding anything. Adding one only updates
+the in-page form — like any other edit, it's not persisted until you hit
+"Save changes". The CV you last imported or saved is remembered across
+page visits (`localStorage`), so the Job Search and Upload CV pages stay
+in sync on the same CV without re-uploading.
+
+### API
+
+- `POST /api/cv/{id}/gaps` — JSON body `{items: string[], source?: string}`.
+  Returns `{gaps: [{id, cv_id, text, source, created_at}, ...]}`. 404 if
+  the CV doesn't exist; 400 if `items` is empty after trimming blanks.
+- `GET /api/cv/{id}/gaps` — list pending gaps for a CV.
+- `DELETE /api/cv/{id}/gaps/{gap_id}` — remove a gap (used both to dismiss
+  it and, after it's been copied into the form, to clear it from the
+  pending list). 404 if it doesn't exist.

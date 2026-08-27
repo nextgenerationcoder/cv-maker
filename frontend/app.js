@@ -177,21 +177,45 @@ function bandFor(score) {
   return SCORE_BANDS.find((b) => score >= b.min);
 }
 
-function scoreBadgeHtml(score) {
+function scoreBadgeHtml(score, jobIndex) {
   const band = bandFor(score.score);
   const missing = score.missing_requirements || [];
+  const missingHtml = missing.length
+    ? `
+      <div class="missing-gaps" data-job-index="${jobIndex}">
+        <p class="missing-label">Missing — check what you actually have experience with:</p>
+        <ul class="missing-list">
+          ${missing
+            .map(
+              (m) => `
+            <li>
+              <label>
+                <input type="checkbox" class="missing-checkbox" value="${escapeAttr(m)}" checked />
+                ${escapeHtml(m)}
+              </label>
+            </li>`
+            )
+            .join("")}
+        </ul>
+        <button type="button" class="save-gaps-btn" data-job-index="${jobIndex}">Add selected to CV gaps</button>
+        <span class="gaps-status"></span>
+      </div>
+    `
+    : "";
   return `
     <p class="score-badge ${band.className}">${score.score}/100 · ${escapeHtml(band.label)}</p>
     <p class="score-reasoning">${escapeHtml(score.reasoning)}</p>
-    ${
-      missing.length
-        ? `<p class="score-missing">Missing: ${missing.map(escapeHtml).join(", ")}</p>`
-        : ""
-    }
+    ${missingHtml}
   `;
 }
 
 resultsEl.addEventListener("click", async (event) => {
+  const saveGapsBtn = event.target.closest(".save-gaps-btn");
+  if (saveGapsBtn) {
+    await saveSelectedGaps(saveGapsBtn);
+    return;
+  }
+
   const btn = event.target.closest(".check-match-btn");
   if (!btn) return;
 
@@ -228,13 +252,50 @@ resultsEl.addEventListener("click", async (event) => {
     const data = await response.json();
     const score = data.scores[0];
     lastScoresByIndex[index] = score;
-    btn.outerHTML = scoreBadgeHtml(score);
+    btn.outerHTML = scoreBadgeHtml(score, index);
   } catch (err) {
     btn.disabled = false;
     btn.textContent = "Check match?";
     btn.insertAdjacentHTML("afterend", `<span class="score-error">${escapeHtml(err.message)}</span>`);
   }
 });
+
+async function saveSelectedGaps(btn) {
+  const index = Number(btn.dataset.jobIndex);
+  const container = btn.closest(".missing-gaps");
+  const statusEl = container.querySelector(".gaps-status");
+  const checked = Array.from(container.querySelectorAll(".missing-checkbox:checked")).map((c) => c.value);
+
+  if (!checked.length) {
+    statusEl.textContent = "Select at least one item first.";
+    return;
+  }
+  const cvId = scoreCvSelectEl.value;
+  if (!cvId) {
+    statusEl.textContent = "Select a CV first.";
+    return;
+  }
+
+  const job = lastJobs[index];
+  btn.disabled = true;
+  statusEl.textContent = "Saving…";
+
+  try {
+    const response = await fetch(`${API_BASE}/api/cv/${cvId}/gaps`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items: checked, source: job?.title || null }),
+    });
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      throw new Error(errorBody.detail || `Request failed with ${response.status}`);
+    }
+    statusEl.textContent = `Added ${checked.length} to "Missing experiences" on the Upload CV page.`;
+  } catch (err) {
+    btn.disabled = false;
+    statusEl.textContent = `Error: ${err.message}`;
+  }
+}
 
 function renderResults(jobs) {
   resultsEl.innerHTML = "";
@@ -254,7 +315,7 @@ function renderResults(jobs) {
 
     const score = lastScoresByIndex[index];
     const scoreHtml = score
-      ? scoreBadgeHtml(score)
+      ? scoreBadgeHtml(score, index)
       : hasSavedCv
       ? `<button type="button" class="check-match-btn" data-index="${index}">Check match?</button>`
       : "";
@@ -274,4 +335,8 @@ function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str;
   return div.innerHTML;
+}
+
+function escapeAttr(str) {
+  return escapeHtml(str).replace(/"/g, "&quot;");
 }

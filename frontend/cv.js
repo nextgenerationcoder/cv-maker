@@ -17,8 +17,12 @@ const educationEntriesEl = document.getElementById("education-entries");
 const trainingEntriesEl = document.getElementById("training-entries");
 const languageEntriesEl = document.getElementById("language-entries");
 const toolsContainerEl = document.getElementById("tools-container");
+const gapsSectionEl = document.getElementById("gaps-section");
+const gapsListEl = document.getElementById("gaps-list");
+const refreshGapsBtn = document.getElementById("refresh-gaps-btn");
 
 let currentCvId = null;
+const LAST_CV_ID_KEY = "cvMakerLastCvId";
 
 downloadTemplateLink.href = `${API_BASE}/api/cv/template.json`;
 
@@ -379,10 +383,12 @@ uploadForm.addEventListener("submit", async (event) => {
     }
     const data = await response.json();
     currentCvId = data.id;
+    localStorage.setItem(LAST_CV_ID_KEY, currentCvId);
     statusEl.textContent = `Imported ${data.filename}. Review and edit below, then save.`;
     loadProfileIntoForm(data.filename, data.profile);
     exportJsonLink.href = `${API_BASE}/api/cv/${currentCvId}/export.json`;
     exportJsonLink.hidden = false;
+    loadGaps();
   } catch (err) {
     statusEl.textContent = `Error: ${err.message}`;
   }
@@ -416,3 +422,130 @@ editForm.addEventListener("submit", async (event) => {
     saveStatusEl.textContent = `Error: ${err.message}`;
   }
 });
+
+// ---------- missing experiences (gaps) ----------
+
+function getCurrentToolCategoryNames() {
+  return Array.from(toolsContainerEl.querySelectorAll(":scope > .tool-category"))
+    .map((block) => readField(block, "category-name"))
+    .filter(Boolean);
+}
+
+function findToolCategoryBlock(name) {
+  return Array.from(toolsContainerEl.querySelectorAll(":scope > .tool-category")).find(
+    (block) => readField(block, "category-name") === name
+  );
+}
+
+function renderGapsList(gaps) {
+  gapsListEl.innerHTML = "";
+  for (const gap of gaps) {
+    const row = document.createElement("div");
+    row.className = "gap-row entry-card";
+
+    const text = document.createElement("p");
+    text.className = "gap-text";
+    text.textContent = gap.source ? `${gap.text} (from "${gap.source}")` : gap.text;
+    row.appendChild(text);
+
+    const controls = document.createElement("div");
+    controls.className = "gap-controls";
+
+    const select = document.createElement("select");
+    select.className = "gap-category-select";
+    for (const cat of getCurrentToolCategoryNames()) {
+      const opt = document.createElement("option");
+      opt.value = cat;
+      opt.textContent = cat;
+      select.appendChild(opt);
+    }
+    const newOpt = document.createElement("option");
+    newOpt.value = "__new__";
+    newOpt.textContent = "+ New category…";
+    select.appendChild(newOpt);
+    controls.appendChild(select);
+
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "add-entry-btn";
+    addBtn.textContent = "Add to CV";
+    addBtn.addEventListener("click", () => addGapToCv(gap, select, row));
+    controls.appendChild(addBtn);
+
+    const dismissBtn = document.createElement("button");
+    dismissBtn.type = "button";
+    dismissBtn.className = "remove-entry";
+    dismissBtn.textContent = "Dismiss";
+    dismissBtn.addEventListener("click", () => dismissGap(gap.id, row));
+    controls.appendChild(dismissBtn);
+
+    row.appendChild(controls);
+    gapsListEl.appendChild(row);
+  }
+  gapsSectionEl.hidden = gaps.length === 0;
+}
+
+async function addGapToCv(gap, select, row) {
+  let category = select.value;
+  if (category === "__new__" || !category) {
+    category = window.prompt("New tool category name:", "");
+    if (!category) return;
+  }
+
+  let targetBlock = findToolCategoryBlock(category);
+  if (!targetBlock) {
+    targetBlock = makeToolCategoryBlock(category, []);
+    toolsContainerEl.appendChild(targetBlock);
+  }
+  targetBlock.querySelector(".tool-items-list").appendChild(makeToolItem({ name: gap.text, level: null }));
+
+  await dismissGap(gap.id, row);
+  saveStatusEl.textContent = 'Added to Tools below — click "Save changes" to keep it.';
+}
+
+async function dismissGap(gapId, row) {
+  try {
+    await fetch(`${API_BASE}/api/cv/${currentCvId}/gaps/${gapId}`, { method: "DELETE" });
+  } catch {
+    // best-effort — remove from view regardless so the UI doesn't get stuck
+  }
+  row.remove();
+  if (!gapsListEl.children.length) gapsSectionEl.hidden = true;
+}
+
+async function loadGaps() {
+  if (!currentCvId) return;
+  try {
+    const response = await fetch(`${API_BASE}/api/cv/${currentCvId}/gaps`);
+    if (!response.ok) return;
+    const data = await response.json();
+    renderGapsList(data.gaps);
+  } catch {
+    // gaps are a nice-to-have overlay — a failed fetch shouldn't block the rest of the page
+  }
+}
+
+refreshGapsBtn.addEventListener("click", loadGaps);
+
+// ---------- resume the last-used CV across page visits ----------
+
+(async function resumeLastCv() {
+  const lastId = localStorage.getItem(LAST_CV_ID_KEY);
+  if (!lastId) return;
+  try {
+    const response = await fetch(`${API_BASE}/api/cv/${lastId}`);
+    if (!response.ok) {
+      localStorage.removeItem(LAST_CV_ID_KEY);
+      return;
+    }
+    const record = await response.json();
+    currentCvId = record.id;
+    statusEl.textContent = `Resumed "${record.filename}" from your last visit.`;
+    loadProfileIntoForm(record.filename, record.profile);
+    exportJsonLink.href = `${API_BASE}/api/cv/${currentCvId}/export.json`;
+    exportJsonLink.hidden = false;
+    loadGaps();
+  } catch {
+    // offline or backend unreachable — just leave the page in its default empty state
+  }
+})();

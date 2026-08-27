@@ -1,6 +1,6 @@
 import logging
 import uuid
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from fastapi.responses import PlainTextResponse
@@ -20,6 +20,11 @@ MAX_JSON_BYTES = 2 * 1024 * 1024  # 2MB
 class SaveProfileRequest(BaseModel):
     profile: CVProfile
     filename: Optional[str] = None
+
+
+class AddGapsRequest(BaseModel):
+    items: List[str]
+    source: Optional[str] = None
 
 
 @router.get("/template.json")
@@ -85,6 +90,31 @@ def export_cv_json(cv_id: str):
         media_type="application/json",
         headers={"Content-Disposition": f"attachment; filename={record['filename']}.json"},
     )
+
+
+@router.post("/{cv_id}/gaps")
+def add_gaps(cv_id: str, body: AddGapsRequest):
+    if cv_store.fetch_cv(cv_id) is None:
+        raise HTTPException(status_code=404, detail="CV not found.")
+    items = [t.strip() for t in body.items if t.strip()]
+    if not items:
+        raise HTTPException(status_code=400, detail="No gap items provided.")
+    created = cv_store.add_gaps(cv_id, items, source=body.source)
+    return {"gaps": created}
+
+
+@router.get("/{cv_id}/gaps")
+def list_gaps(cv_id: str):
+    if cv_store.fetch_cv(cv_id) is None:
+        raise HTTPException(status_code=404, detail="CV not found.")
+    return {"gaps": cv_store.list_gaps(cv_id)}
+
+
+@router.delete("/{cv_id}/gaps/{gap_id}")
+def delete_gap(cv_id: str, gap_id: str):
+    if not cv_store.delete_gap(cv_id, gap_id):
+        raise HTTPException(status_code=404, detail="Gap not found.")
+    return {"status": "deleted"}
 
 
 @router.put("/{cv_id}")
