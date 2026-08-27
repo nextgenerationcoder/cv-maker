@@ -122,3 +122,35 @@ a CV from a blank form.
 SQLite, path from `CV_DB_PATH` (default `./cv_profiles.db`; the Docker setup
 points it at `/data/cv.db` on a named volume, `cv_data`, so uploads survive
 container rebuilds).
+
+## AI job scoring
+
+On the Job Search page, once you have at least one saved CV, a "Score with
+AI" bar appears above the results: pick a CV, click it, and each job gets
+a 0-100 fit score, a short reasoning, and (when relevant) a list of
+concrete missing requirements — grounded only in what's actually in the
+CV profile, not assumptions. Results re-sort best-match-first.
+
+Unlike CV extraction, this one genuinely needs an LLM (job-fit judgment
+isn't something regex heuristics can do) — set `ANTHROPIC_API_KEY` (copy
+`.env.example` to `.env`, `docker compose` picks it up automatically).
+Nothing else in the app needs this key; job search and CV upload/edit
+work fine without it.
+
+- Model: `claude-opus-5`, structured output (`CVProfile`-shaped request →
+  a `JobScore` per job) via `client.messages.parse`.
+- Scores up to 25 jobs in a single request (one call, not one per job) —
+  keeps cost and latency down and gives the model consistent scoring
+  criteria across the batch. Searches returning more are scored on the
+  first 25 only, with a note.
+- A job with no `description` (JobSpy doesn't always populate it — see
+  above) is judged on title/company/location alone, and the model is
+  told to flag when that isn't enough to be confident.
+
+### API
+
+- `POST /api/jobs/score` — JSON body `{cv_id, jobs: [{id, title, company?,
+  location?, description?, job_type?}, ...]}` (max 25 jobs). Returns
+  `{scores: [{id, score, reasoning, missing_requirements}, ...]}`, keyed
+  back to the `id` you sent so the frontend can match by array index
+  rather than relying on response order.

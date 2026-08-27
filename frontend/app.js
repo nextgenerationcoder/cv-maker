@@ -10,6 +10,45 @@ const statusEl = document.getElementById("status");
 const resultsEl = document.getElementById("results");
 const urlForm = document.getElementById("url-form");
 const urlStatusEl = document.getElementById("url-status");
+const scoreBarEl = document.getElementById("score-bar");
+const scoreCvSelectEl = document.getElementById("score-cv-select");
+const scoreBtnEl = document.getElementById("score-btn");
+const scoreStatusEl = document.getElementById("score-status");
+
+const MAX_JOBS_TO_SCORE = 25;
+
+let lastJobs = [];
+let lastScoresByIndex = null;
+
+async function loadCvOptions() {
+  try {
+    const response = await fetch(`${API_BASE}/api/cv?limit=50`);
+    if (!response.ok) return [];
+    const data = await response.json();
+    scoreCvSelectEl.innerHTML = "";
+    if (!data.cvs.length) {
+      const opt = document.createElement("option");
+      opt.textContent = "No saved CV yet — add one on the Upload CV page";
+      opt.disabled = true;
+      opt.selected = true;
+      scoreCvSelectEl.appendChild(opt);
+      scoreBtnEl.disabled = true;
+    } else {
+      for (const cv of data.cvs) {
+        const opt = document.createElement("option");
+        opt.value = cv.id;
+        opt.textContent = cv.filename;
+        scoreCvSelectEl.appendChild(opt);
+      }
+      scoreBtnEl.disabled = false;
+    }
+    return data.cvs;
+  } catch {
+    return [];
+  }
+}
+
+loadCvOptions();
 
 // Reverse of jobspy's f_JT codes (jobspy/linkedin/util.py: job_type_code)
 const LINKEDIN_JOB_TYPE_CODES = {
@@ -119,15 +158,84 @@ form.addEventListener("submit", async (event) => {
     }
     const data = await response.json();
     statusEl.textContent = `${data.count} job(s) found`;
-    renderResults(data.jobs);
+    lastJobs = data.jobs;
+    lastScoresByIndex = null;
+    scoreStatusEl.textContent = "";
+    scoreBarEl.hidden = lastJobs.length === 0;
+    renderResults(lastJobs);
   } catch (err) {
     statusEl.textContent = `Error: ${err.message}`;
   }
 });
 
-function renderResults(jobs) {
+const SCORE_BANDS = [
+  { min: 75, label: "Strong match", className: "score-strong" },
+  { min: 50, label: "Worth applying", className: "score-good" },
+  { min: 25, label: "Stretch", className: "score-stretch" },
+  { min: 0, label: "Not aligned", className: "score-weak" },
+];
+
+function bandFor(score) {
+  return SCORE_BANDS.find((b) => score >= b.min);
+}
+
+scoreBtnEl.addEventListener("click", async () => {
+  if (!lastJobs.length) return;
+  const cvId = scoreCvSelectEl.value;
+  if (!cvId) {
+    scoreStatusEl.textContent = "Select a CV first.";
+    return;
+  }
+
+  const jobsToScore = lastJobs.slice(0, MAX_JOBS_TO_SCORE);
+  const truncated = lastJobs.length > MAX_JOBS_TO_SCORE;
+  scoreStatusEl.textContent = "Scoring with AI…";
+
+  const payloadJobs = jobsToScore.map((job, index) => ({
+    id: index,
+    title: job.title || "Untitled role",
+    company: job.company || null,
+    location: job.location || null,
+    description: job.description || null,
+    job_type: Array.isArray(job.job_type) ? job.job_type.join(", ") : job.job_type || null,
+  }));
+
+  try {
+    const response = await fetch(`${API_BASE}/api/jobs/score`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cv_id: cvId, jobs: payloadJobs }),
+    });
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      throw new Error(errorBody.detail || `Request failed with ${response.status}`);
+    }
+    const data = await response.json();
+    lastScoresByIndex = {};
+    for (const s of data.scores) lastScoresByIndex[s.id] = s;
+
+    scoreStatusEl.textContent = truncated
+      ? `Scored the first ${MAX_JOBS_TO_SCORE} of ${lastJobs.length} results.`
+      : "Scored. Sorted by best match.";
+
+    const indexed = lastJobs.map((job, index) => ({ job, index }));
+    indexed.sort((a, b) => {
+      const scoreA = lastScoresByIndex[a.index]?.score ?? -1;
+      const scoreB = lastScoresByIndex[b.index]?.score ?? -1;
+      return scoreB - scoreA;
+    });
+    renderResults(
+      indexed.map((x) => x.job),
+      indexed.map((x) => x.index)
+    );
+  } catch (err) {
+    scoreStatusEl.textContent = `Error: ${err.message}`;
+  }
+});
+
+function renderResults(jobs, originalIndexes) {
   resultsEl.innerHTML = "";
-  for (const job of jobs) {
+  jobs.forEach((job, i) => {
     const li = document.createElement("li");
     const title = job.title || "Untitled role";
     const company = job.company || "Unknown company";
@@ -141,14 +249,32 @@ function renderResults(jobs) {
       .map(escapeHtml)
       .join(" · ");
 
+    const scoreIndex = originalIndexes ? originalIndexes[i] : null;
+    const score = lastScoresByIndex && scoreIndex != null ? lastScoresByIndex[scoreIndex] : null;
+    let scoreHtml = "";
+    if (score) {
+      const band = bandFor(score.score);
+      const missing = score.missing_requirements || [];
+      scoreHtml = `
+        <p class="score-badge ${band.className}">${score.score}/100 · ${escapeHtml(band.label)}</p>
+        <p class="score-reasoning">${escapeHtml(score.reasoning)}</p>
+        ${
+          missing.length
+            ? `<p class="score-missing">Missing: ${missing.map(escapeHtml).join(", ")}</p>`
+            : ""
+        }
+      `;
+    }
+
     li.innerHTML = `
       <h3>${escapeHtml(title)}</h3>
       <p>${escapeHtml(company)}${location ? " — " + escapeHtml(location) : ""}</p>
       ${meta ? `<p class="meta">${meta}</p>` : ""}
+      ${scoreHtml}
       <a href="${url}" target="_blank" rel="noopener noreferrer">View job</a>
     `;
     resultsEl.appendChild(li);
-  }
+  });
 }
 
 function escapeHtml(str) {

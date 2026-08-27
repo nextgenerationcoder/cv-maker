@@ -4,6 +4,7 @@ services:
     restart: always
     environment:
       - CV_DB_PATH=/data/cv.db
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     volumes:
       - cv_data:/data
     networks:

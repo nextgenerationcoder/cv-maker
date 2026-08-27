@@ -8,6 +8,7 @@ from jobspy import scrape_jobs
 
 import cv_store
 from cv import router as cv_router
+from jobs_score import router as jobs_score_router
 
 logger = logging.getLogger("cv_maker.jobs")
 
@@ -21,6 +22,7 @@ app.add_middleware(
 )
 
 app.include_router(cv_router)
+app.include_router(jobs_score_router)
 
 
 @app.on_event("startup")
