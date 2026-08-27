@@ -1,41 +1,16 @@
-import base64
 import logging
 import uuid
 
-import anthropic
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 
 import cv_store
-from cv_models import CVProfile
+from cv_parser import extract_cv_profile
 
 logger = logging.getLogger("cv_maker.cv")
 
 router = APIRouter(prefix="/api/cv", tags=["cv"])
 
 MAX_CV_BYTES = 15 * 1024 * 1024  # 15MB
-
-EXTRACTION_PROMPT = """\
-Extract all professional information from this CV/resume into structured data.
-Be thorough: include every skill, every job, every degree, every language, and
-every piece of technical knowledge (tools, frameworks, programming languages,
-platforms) mentioned anywhere in the document.
-
-For preferred_roles, infer the candidate's likely target job titles/roles from
-their summary or objective section, their most recent job titles, and their
-overall career trajectory, even if not explicitly stated as "preferred roles".
-
-Only include information actually present in or reasonably inferable from the
-document. Use empty lists or null for anything not found — do not invent
-facts."""
-
-_client: anthropic.Anthropic | None = None
-
-
-def _get_client() -> anthropic.Anthropic:
-    global _client
-    if _client is None:
-        _client = anthropic.Anthropic()
-    return _client
 
 
 @router.post("/upload")
@@ -55,38 +30,17 @@ async def upload_cv(file: UploadFile = File(...)):
             detail=f"File too large — max {MAX_CV_BYTES // (1024 * 1024)}MB.",
         )
 
-    pdf_b64 = base64.standard_b64encode(pdf_bytes).decode("utf-8")
-
     try:
-        response = _get_client().messages.parse(
-            model="claude-opus-5",
-            max_tokens=8000,
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "document",
-                            "source": {
-                                "type": "base64",
-                                "media_type": "application/pdf",
-                                "data": pdf_b64,
-                            },
-                        },
-                        {"type": "text", "text": EXTRACTION_PROMPT},
-                    ],
-                }
-            ],
-            output_format=CVProfile,
-        )
-    except anthropic.APIStatusError:
+        profile = extract_cv_profile(pdf_bytes)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception:
         logger.exception("CV extraction failed for filename=%r", file.filename)
         raise HTTPException(
-            status_code=502,
-            detail="CV extraction failed. Please try again shortly.",
+            status_code=500,
+            detail="Couldn't parse this CV. It may use a layout this parser doesn't handle.",
         )
 
-    profile = response.parsed_output
     cv_id = str(uuid.uuid4())
     uploaded_at = cv_store.save_cv(cv_id, file.filename or "cv.pdf", profile)
 

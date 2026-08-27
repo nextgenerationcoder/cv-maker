@@ -11,19 +11,7 @@ Add an A record for `cvmaker.amirseyti.de` pointing at the VPS's IP, the
 same way `book.amirseyti.de` is set up. This has to be done in your DNS
 provider — nothing in this repo can do it for you.
 
-## 2. Set the Anthropic API key (needed for CV upload/extraction)
-
-```bash
-cd cv-maker
-cp .env.example .env
-nano .env   # fill in ANTHROPIC_API_KEY=sk-ant-...
-```
-
-`.env` is gitignored — `docker compose` reads it automatically from the
-same directory as `docker-compose.yml`. The job-search feature works
-without this; only `/api/cv/upload` needs it.
-
-## 3. Get the code onto the server and start it
+## 2. Get the code onto the server and start it
 
 ```bash
 ssh you@your-server
@@ -33,11 +21,12 @@ docker compose up -d --build
 ```
 
 `docker-compose.yml` here builds two containers:
-- `backend` — FastAPI + JobSpy + CV extraction (Claude). Internal only, no
-  Traefik labels — nothing external ever reaches it directly. Its SQLite
-  DB (extracted CV profiles) lives on the named volume `cv_data`, mounted
-  at `/data`, so it survives `docker compose up -d --build` redeploys —
-  only `docker compose down -v` or deleting the volume wipes it.
+- `backend` — FastAPI + JobSpy + local (no-API) CV extraction. Internal
+  only, no Traefik labels — nothing external ever reaches it directly.
+  Its SQLite DB (extracted CV profiles) lives on the named volume
+  `cv_data`, mounted at `/data`, so it survives
+  `docker compose up -d --build` redeploys — only `docker compose down -v`
+  or deleting the volume wipes it.
 - `frontend` — nginx serving the static UI and proxying `/api/` to
   `backend`. This is the one Traefik routes to, via labels on the
   `frontend` service:
@@ -57,7 +46,7 @@ The router/service name `cvmaker` must stay unique across every compose
 file on this VPS (Traefik would otherwise get two conflicting definitions
 for the same name) — don't reuse it for another app.
 
-## 4. Verify
+## 3. Verify
 
 Within a minute or two, Traefik should provision the certificate and
 `https://cvmaker.amirseyti.de` should load the app. If it 404s or 502s,

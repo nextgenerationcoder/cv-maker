@@ -3,7 +3,6 @@ services:
     build: ./backend
     restart: always
     environment:
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - CV_DB_PATH=/data/cv.db
     volumes:
       - cv_data:/data

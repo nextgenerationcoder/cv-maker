@@ -62,17 +62,32 @@ results. Open it directly in a browser (with the backend running on
 
 ## CV upload & extraction
 
-`frontend/cv.html` lets you upload a CV as a PDF; the backend sends it to
-Claude (`claude-opus-5`, via native PDF document input + structured output)
-to extract a structured profile — contact info, summary, skills, technical
-knowledge, education, work experience, languages, likely preferred roles
-(inferred from the CV's summary/trajectory if not stated outright), and
+`frontend/cv.html` lets you upload a CV as a PDF; the backend parses it
+locally (`cv_parser.py`) — no external API, no API key, no cost — to
+extract a structured profile: contact info, summary, skills, technical
+knowledge, education, work experience, languages, preferred roles, and
 certifications. The result is stored in SQLite and returned to the page.
 
-Requires `ANTHROPIC_API_KEY` set in the backend's environment (copy
-`.env.example` to `.env` and fill in your key — `docker-compose.yml` reads
-it from there automatically; for local `uvicorn` runs, `export` it or use a
-tool like `direnv`).
+This is a rule-based parser (PDF text extraction via `pdfplumber` in
+layout-preserving mode, then section-header detection + regex/keyword
+heuristics), not an LLM — it works well on CVs with clear, conventional
+section headers (English or German) and date-anchored entries, but will
+do noticeably worse on unusual layouts, free-flowing prose, or
+scanned/image-only PDFs (no embedded text to read). Tested end-to-end
+against a real multi-column resume; known rough edges found there:
+
+- `preferred_roles` falls back to the most recent job title(s) when
+  there's no explicit "target role" section — it's a guess, not real
+  inference.
+- An entry whose date range uses a shared year across two months (e.g.
+  "March – May 2026") isn't recognized as an entry boundary and merges
+  into the previous entry — only a range with a year on both ends is.
+- A skill/tool value that word-wraps across two lines inside an inline
+  "Label: item, item, item" block (rather than its own bullet line) can
+  split awkwardly at the wrap point.
+- `work_experience[].company` is `"Unknown"` when an entry has no
+  separate company line to detect (e.g. a project title that already
+  names the organization).
 
 ### API
 
