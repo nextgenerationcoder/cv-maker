@@ -86,10 +86,14 @@
     <p id="status"></p>
 
     <div id="score-bar" class="score-bar" hidden>
+      <span>Check match against:</span>
       <select id="score-cv-select"></select>
-      <button type="button" id="score-btn">Score with AI</button>
-      <span id="score-status"></span>
     </div>
+    <p class="hint score-hint" hidden id="score-hint">
+      Click "Check match?" on a job you're interested in — only that one
+      job gets scored, so you're not spending tokens on results you'd
+      skip anyway.
+    </p>
 
     <ul id="results"></ul>
   </main>

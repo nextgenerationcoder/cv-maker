@@ -125,11 +125,13 @@ container rebuilds).
 
 ## AI job scoring
 
-On the Job Search page, once you have at least one saved CV, a "Score with
-AI" bar appears above the results: pick a CV, click it, and each job gets
-a 0-100 fit score, a short reasoning, and (when relevant) a list of
-concrete missing requirements — grounded only in what's actually in the
-CV profile, not assumptions. Results re-sort best-match-first.
+On the Job Search page, once you have at least one saved CV, every job
+card gets a "Check match?" button: click it on a job you're actually
+interested in and only that one job gets scored — a 0-100 fit score, a
+short reasoning, and (when relevant) a list of concrete missing
+requirements, grounded only in what's actually in the CV profile, not
+assumptions. Nothing is scored automatically; scoring is opt-in per job
+so you're not spending tokens on results you'd skip anyway.
 
 Unlike CV extraction, this one genuinely needs an LLM (job-fit judgment
 isn't something regex heuristics can do) — set `ANTHROPIC_API_KEY` (copy
@@ -139,10 +141,9 @@ work fine without it.
 
 - Model: `claude-opus-5`, structured output (`CVProfile`-shaped request →
   a `JobScore` per job) via `client.messages.parse`.
-- Scores up to 25 jobs in a single request (one call, not one per job) —
-  keeps cost and latency down and gives the model consistent scoring
-  criteria across the batch. Searches returning more are scored on the
-  first 25 only, with a note.
+- The API endpoint accepts up to 25 jobs in one request (so a "score all
+  visible results" flow is possible later), but the frontend only ever
+  sends one job per click, matching the per-job button.
 - A job with no `description` (JobSpy doesn't always populate it — see
   above) is judged on title/company/location alone, and the model is
   told to flag when that isn't enough to be confident.

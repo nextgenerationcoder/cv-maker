@@ -12,13 +12,11 @@ const urlForm = document.getElementById("url-form");
 const urlStatusEl = document.getElementById("url-status");
 const scoreBarEl = document.getElementById("score-bar");
 const scoreCvSelectEl = document.getElementById("score-cv-select");
-const scoreBtnEl = document.getElementById("score-btn");
-const scoreStatusEl = document.getElementById("score-status");
-
-const MAX_JOBS_TO_SCORE = 25;
+const scoreHintEl = document.getElementById("score-hint");
 
 let lastJobs = [];
-let lastScoresByIndex = null;
+let lastScoresByIndex = {};
+let hasSavedCv = false;
 
 async function loadCvOptions() {
   try {
@@ -26,13 +24,13 @@ async function loadCvOptions() {
     if (!response.ok) return [];
     const data = await response.json();
     scoreCvSelectEl.innerHTML = "";
-    if (!data.cvs.length) {
+    hasSavedCv = data.cvs.length > 0;
+    if (!hasSavedCv) {
       const opt = document.createElement("option");
       opt.textContent = "No saved CV yet — add one on the Upload CV page";
       opt.disabled = true;
       opt.selected = true;
       scoreCvSelectEl.appendChild(opt);
-      scoreBtnEl.disabled = true;
     } else {
       for (const cv of data.cvs) {
         const opt = document.createElement("option");
@@ -40,7 +38,6 @@ async function loadCvOptions() {
         opt.textContent = cv.filename;
         scoreCvSelectEl.appendChild(opt);
       }
-      scoreBtnEl.disabled = false;
     }
     return data.cvs;
   } catch {
@@ -159,9 +156,10 @@ form.addEventListener("submit", async (event) => {
     const data = await response.json();
     statusEl.textContent = `${data.count} job(s) found`;
     lastJobs = data.jobs;
-    lastScoresByIndex = null;
-    scoreStatusEl.textContent = "";
-    scoreBarEl.hidden = lastJobs.length === 0;
+    lastScoresByIndex = {};
+    await loadCvOptions(); // refresh in case a CV was added/removed since page load
+    scoreBarEl.hidden = lastJobs.length === 0 || !hasSavedCv;
+    scoreHintEl.hidden = lastJobs.length === 0 || !hasSavedCv;
     renderResults(lastJobs);
   } catch (err) {
     statusEl.textContent = `Error: ${err.message}`;
@@ -179,63 +177,68 @@ function bandFor(score) {
   return SCORE_BANDS.find((b) => score >= b.min);
 }
 
-scoreBtnEl.addEventListener("click", async () => {
-  if (!lastJobs.length) return;
+function scoreBadgeHtml(score) {
+  const band = bandFor(score.score);
+  const missing = score.missing_requirements || [];
+  return `
+    <p class="score-badge ${band.className}">${score.score}/100 · ${escapeHtml(band.label)}</p>
+    <p class="score-reasoning">${escapeHtml(score.reasoning)}</p>
+    ${
+      missing.length
+        ? `<p class="score-missing">Missing: ${missing.map(escapeHtml).join(", ")}</p>`
+        : ""
+    }
+  `;
+}
+
+resultsEl.addEventListener("click", async (event) => {
+  const btn = event.target.closest(".check-match-btn");
+  if (!btn) return;
+
+  const index = Number(btn.dataset.index);
+  const job = lastJobs[index];
   const cvId = scoreCvSelectEl.value;
   if (!cvId) {
-    scoreStatusEl.textContent = "Select a CV first.";
+    btn.insertAdjacentHTML("afterend", '<span class="score-error">Select a CV first.</span>');
     return;
   }
 
-  const jobsToScore = lastJobs.slice(0, MAX_JOBS_TO_SCORE);
-  const truncated = lastJobs.length > MAX_JOBS_TO_SCORE;
-  scoreStatusEl.textContent = "Scoring with AI…";
+  btn.disabled = true;
+  btn.textContent = "Checking…";
 
-  const payloadJobs = jobsToScore.map((job, index) => ({
+  const payloadJob = {
     id: index,
     title: job.title || "Untitled role",
     company: job.company || null,
     location: job.location || null,
     description: job.description || null,
     job_type: Array.isArray(job.job_type) ? job.job_type.join(", ") : job.job_type || null,
-  }));
+  };
 
   try {
     const response = await fetch(`${API_BASE}/api/jobs/score`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cv_id: cvId, jobs: payloadJobs }),
+      body: JSON.stringify({ cv_id: cvId, jobs: [payloadJob] }),
     });
     if (!response.ok) {
       const errorBody = await response.json().catch(() => ({}));
       throw new Error(errorBody.detail || `Request failed with ${response.status}`);
     }
     const data = await response.json();
-    lastScoresByIndex = {};
-    for (const s of data.scores) lastScoresByIndex[s.id] = s;
-
-    scoreStatusEl.textContent = truncated
-      ? `Scored the first ${MAX_JOBS_TO_SCORE} of ${lastJobs.length} results.`
-      : "Scored. Sorted by best match.";
-
-    const indexed = lastJobs.map((job, index) => ({ job, index }));
-    indexed.sort((a, b) => {
-      const scoreA = lastScoresByIndex[a.index]?.score ?? -1;
-      const scoreB = lastScoresByIndex[b.index]?.score ?? -1;
-      return scoreB - scoreA;
-    });
-    renderResults(
-      indexed.map((x) => x.job),
-      indexed.map((x) => x.index)
-    );
+    const score = data.scores[0];
+    lastScoresByIndex[index] = score;
+    btn.outerHTML = scoreBadgeHtml(score);
   } catch (err) {
-    scoreStatusEl.textContent = `Error: ${err.message}`;
+    btn.disabled = false;
+    btn.textContent = "Check match?";
+    btn.insertAdjacentHTML("afterend", `<span class="score-error">${escapeHtml(err.message)}</span>`);
   }
 });
 
-function renderResults(jobs, originalIndexes) {
+function renderResults(jobs) {
   resultsEl.innerHTML = "";
-  jobs.forEach((job, i) => {
+  jobs.forEach((job, index) => {
     const li = document.createElement("li");
     const title = job.title || "Untitled role";
     const company = job.company || "Unknown company";
@@ -249,22 +252,12 @@ function renderResults(jobs, originalIndexes) {
       .map(escapeHtml)
       .join(" · ");
 
-    const scoreIndex = originalIndexes ? originalIndexes[i] : null;
-    const score = lastScoresByIndex && scoreIndex != null ? lastScoresByIndex[scoreIndex] : null;
-    let scoreHtml = "";
-    if (score) {
-      const band = bandFor(score.score);
-      const missing = score.missing_requirements || [];
-      scoreHtml = `
-        <p class="score-badge ${band.className}">${score.score}/100 · ${escapeHtml(band.label)}</p>
-        <p class="score-reasoning">${escapeHtml(score.reasoning)}</p>
-        ${
-          missing.length
-            ? `<p class="score-missing">Missing: ${missing.map(escapeHtml).join(", ")}</p>`
-            : ""
-        }
-      `;
-    }
+    const score = lastScoresByIndex[index];
+    const scoreHtml = score
+      ? scoreBadgeHtml(score)
+      : hasSavedCv
+      ? `<button type="button" class="check-match-btn" data-index="${index}">Check match?</button>`
+      : "";
 
     li.innerHTML = `
       <h3>${escapeHtml(title)}</h3>
