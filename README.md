@@ -165,13 +165,16 @@ assumptions. Nothing is scored automatically; scoring is opt-in per job
 so you're not spending tokens on results you'd skip anyway.
 
 Unlike CV extraction, this one genuinely needs an LLM (job-fit judgment
-isn't something regex heuristics can do) — set `ANTHROPIC_API_KEY` (copy
-`.env.example` to `.env`, `docker compose` picks it up automatically).
-Nothing else in the app needs this key; job search and CV upload/edit
-work fine without it.
+isn't something regex heuristics can do). It uses whichever provider is
+configured on the [Settings](#settings-ai-provider) page for the logged-in
+user — falling back to this deployment's own `ANTHROPIC_API_KEY` (copy
+`.env.example` to `.env`) if the user hasn't set one. Nothing else in the
+app needs an LLM key; job search and CV upload/edit work fine without it.
 
-- Model: `claude-opus-5`, structured output (`CVProfile`-shaped request →
-  a `JobScore` per job) via `client.messages.parse`.
+- Anthropic: `claude-opus-5`, structured output (`CVProfile`-shaped
+  request → a `JobScore` per job) via `client.messages.parse`. DeepSeek:
+  JSON mode with the schema in the prompt, validated and retried
+  server-side.
 - The API endpoint accepts up to 25 jobs in one request (so a "score all
   visible results" flow is possible later), but the frontend only ever
   sends one job per click, matching the per-job button.
@@ -246,6 +249,36 @@ removes it from the learning list); "Remove" just drops it.
 - `DELETE /api/cv/{id}/learning/{item_id}` — remove an item. 404 if it
   doesn't exist.
 
+## Settings (AI provider)
+
+`frontend/settings.html` — every AI feature (job scoring, job analysis,
+resume matching, CV generation) goes through one provider choice per
+account: **Anthropic** (Claude) or **DeepSeek**. Pick a provider and
+optionally save your own API key; without a saved key, Anthropic falls
+back to this deployment's own `ANTHROPIC_API_KEY`, while DeepSeek always
+needs a personal key (there's no shared DeepSeek key). Keys are encrypted
+at rest (`backend/crypto_util.py`, a key derived from `JWT_SECRET`) and
+only ever shown back masked (`sk-d••••••7890`), never in full.
+
+Swapping in a new provider means adding one class to
+`backend/llm_provider.py` — `LLMProvider` is the interface every pipeline
+step and job-scoring call goes through (`structured_call(system_blocks,
+content_blocks, output_model) → (parsed, usage)`); nothing else in the
+codebase talks to an SDK directly. `AnthropicProvider` uses Claude's
+native structured output; `DeepSeekProvider` uses the (OpenAI-compatible)
+`openai` SDK pointed at `https://api.deepseek.com`, asks for JSON mode
+with the target schema embedded in the prompt, and validates + retries
+once server-side since DeepSeek doesn't enforce a JSON schema itself.
+
+### API
+
+- `GET /api/settings` — `{llm_provider, has_api_key, api_key_preview,
+  available_providers}`.
+- `PUT /api/settings` — JSON body `{llm_provider, api_key?}`.
+  `llm_provider` must be `"anthropic"` or `"deepseek"`. `api_key`:
+  omit to leave the saved key unchanged, `""` to remove it, or a new
+  value to replace it.
+
 ## CV tailoring
 
 Given a saved CV and a specific job, generate a CV tailored to that job —
@@ -265,11 +298,15 @@ only — structural facts filled in separately) → evaluation (score 0-100,
 `TAILOR_PASS_SCORE`, default 75) → up to `TAILOR_MAX_REVISIONS` (default
 2) targeted revisions if it doesn't pass → final wording-only polish pass
 → grounding validation → stored as a new version. Each stage is a
-separate, narrowly-scoped LLM call (`backend/llm_provider.py`, model
-`TAILOR_LLM_MODEL`, default `claude-opus-5`); prompts put the candidate's
+separate, narrowly-scoped LLM call through whichever provider is set on
+the [Settings](#settings-ai-provider) page for the requesting user
+(`backend/llm_provider.py`; Anthropic defaults to `TAILOR_LLM_MODEL`,
+default `claude-opus-5`). On Anthropic, prompts put the candidate's
 resume evidence behind a `cache_control` breakpoint ahead of job-specific
 content, so repeated calls in one generation (and regenerations of the
-same CV) can hit Anthropic's prompt cache.
+same CV) can hit Anthropic's prompt cache — DeepSeek calls skip this
+(no equivalent client-controlled breakpoint), so caching there is
+whatever DeepSeek's own automatic prompt caching picks up.
 
 Resume items get stable IDs derived from their own content (not stored in
 the DB), so appending new experience needs no migration or rewrite —

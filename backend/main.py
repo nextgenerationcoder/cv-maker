@@ -7,12 +7,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from jobspy import scrape_jobs
 
 import cv_store
+import settings_store
 import tailoring_store
 import user_store
 from auth import get_current_user
 from auth import router as auth_router
 from cv import router as cv_router
 from jobs_score import router as jobs_score_router
+from settings import router as settings_router
 from tailoring import router as tailoring_router
 
 logger = logging.getLogger("cv_maker.jobs")
@@ -30,6 +32,7 @@ app.include_router(auth_router)
 app.include_router(cv_router)
 app.include_router(jobs_score_router)
 app.include_router(tailoring_router)
+app.include_router(settings_router)
 
 
 @app.on_event("startup")
@@ -37,6 +40,7 @@ def _init_db() -> None:
     cv_store.init_db()
     user_store.init_db()
     tailoring_store.init_db()
+    settings_store.init_db()
 
 SUPPORTED_SITES = ["indeed", "linkedin", "zip_recruiter", "glassdoor", "google"]
 SUPPORTED_JOB_TYPES = [

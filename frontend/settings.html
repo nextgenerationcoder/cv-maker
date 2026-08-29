@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CV Maker - Settings</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="container">
+    <nav class="top-nav">
+      <a href="index.html">Job Search</a>
+      <a href="cv.html">Upload CV</a>
+      <a href="learning.html">Skills to Learn</a>
+      <a href="jobs.html">Tailored CVs</a>
+      <a href="settings.html" class="active">Settings</a>
+      <span id="account-bar" class="account-bar"></span>
+    </nav>
+    <h1>Settings</h1>
+
+    <h2>AI provider</h2>
+    <p class="hint">
+      Every AI feature in this app — job match scoring, job analysis,
+      resume matching, and tailored CV generation — uses this setting.
+      Bring your own API key if you'd rather not use the app's shared
+      key (or the shared key isn't set at all).
+    </p>
+
+    <form id="settings-form" class="cv-edit-form">
+      <label class="field">
+        <span>Provider</span>
+        <select id="provider-select">
+          <option value="anthropic">Anthropic (Claude)</option>
+          <option value="deepseek">DeepSeek</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span>API key</span>
+        <input type="password" id="api-key-input" placeholder="Enter a new key to replace the saved one" autocomplete="off" />
+      </label>
+      <p id="key-status" class="hint"></p>
+
+      <div class="save-bar">
+        <button type="submit">Save</button>
+        <button type="button" id="remove-key-btn" class="remove-entry">Remove saved key</button>
+        <span id="settings-status"></span>
+      </div>
+    </form>
+
+    <p class="hint">
+      Keys are stored encrypted and are never shown back in full. Without
+      a saved key, DeepSeek can't be used and Anthropic falls back to
+      this deployment's own key (if the administrator set one).
+    </p>
+  </main>
+  <script src="auth.js"></script>
+  <script>if (!requireAuth()) document.querySelector("main").hidden = true;</script>
+  <script src="settings.js"></script>
+</body>
+</html>

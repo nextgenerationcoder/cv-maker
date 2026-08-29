@@ -10,6 +10,7 @@ import re
 import time
 from typing import Optional
 
+from llm_provider import LLMProvider
 from tailoring_evidence import EvidenceItem, build_evidence_pool
 from tailoring_llm_steps import (
     analyze_job,
@@ -41,12 +42,14 @@ MAX_REVISION_ATTEMPTS = int(os.environ.get("TAILOR_MAX_REVISIONS", "2"))
 _NUMBER_RE = re.compile(r"\d[\d.,]*%?")
 
 
-def run_job_analysis(job: dict) -> tuple[JobAnalysis, dict]:
-    ja, usage = analyze_job(job)
+def run_job_analysis(provider: LLMProvider, job: dict) -> tuple[JobAnalysis, dict]:
+    ja, usage = analyze_job(provider, job)
     return ja, {"inputTokens": usage.input_tokens, "cachedInputTokens": usage.cached_input_tokens, "outputTokens": usage.output_tokens}
 
 
-def run_resume_match(cv_id: str, profile: dict, job_analysis: JobAnalysis) -> tuple[ResumeMatchResult, list[EvidenceItem], dict]:
+def run_resume_match(
+    provider: LLMProvider, cv_id: str, profile: dict, job_analysis: JobAnalysis
+) -> tuple[ResumeMatchResult, list[EvidenceItem], dict]:
     evidence_pool = build_evidence_pool(cv_id, profile)
     if not evidence_pool:
         empty = ResumeMatchResult(
@@ -58,7 +61,7 @@ def run_resume_match(cv_id: str, profile: dict, job_analysis: JobAnalysis) -> tu
             selection=[],
         )
         return empty, evidence_pool, {"inputTokens": 0, "cachedInputTokens": 0, "outputTokens": 0}
-    match, usage = select_evidence_and_match(evidence_pool, job_analysis)
+    match, usage = select_evidence_and_match(provider, evidence_pool, job_analysis)
     return match, evidence_pool, {
         "inputTokens": usage.input_tokens,
         "cachedInputTokens": usage.cached_input_tokens,
@@ -267,7 +270,12 @@ def _apply_polish(draft: CVDraftLLMOutput, polish) -> CVDraftLLMOutput:
 
 
 def run_generation(
-    cv_id: str, profile: dict, cv_updated_at: str, job_analysis: JobAnalysis, match: ResumeMatchResult
+    provider: LLMProvider,
+    cv_id: str,
+    profile: dict,
+    cv_updated_at: str,
+    job_analysis: JobAnalysis,
+    match: ResumeMatchResult,
 ) -> InternalGenerationResult:
     start = time.monotonic()
     evidence_pool = build_evidence_pool(cv_id, profile)
@@ -282,10 +290,10 @@ def run_generation(
         total["cachedInputTokens"] += usage.cached_input_tokens
         total["outputTokens"] += usage.output_tokens
 
-    draft, usage = generate_draft(included_evidence, job_analysis)
+    draft, usage = generate_draft(provider, included_evidence, job_analysis)
     _accumulate(usage)
 
-    eval_result, usage = evaluate_cv(_summarize_draft_for_eval(draft, profile), job_analysis)
+    eval_result, usage = evaluate_cv(provider, _summarize_draft_for_eval(draft, profile), job_analysis)
     eval_result = eval_result.model_copy(update={"passed": eval_result.score >= PASS_SCORE})
     _accumulate(usage)
 
@@ -294,15 +302,15 @@ def run_generation(
         feedback_text = "\n".join(
             f"- [{f.type}] {f.requirement or ''}: {f.message}" for f in eval_result.feedback
         ) or "No specific feedback items were given."
-        draft, usage = revise_draft(included_evidence, job_analysis, draft, feedback_text)
+        draft, usage = revise_draft(provider, included_evidence, job_analysis, draft, feedback_text)
         _accumulate(usage)
         revision_count += 1
-        eval_result, usage = evaluate_cv(_summarize_draft_for_eval(draft, profile), job_analysis)
+        eval_result, usage = evaluate_cv(provider, _summarize_draft_for_eval(draft, profile), job_analysis)
         eval_result = eval_result.model_copy(update={"passed": eval_result.score >= PASS_SCORE})
         _accumulate(usage)
 
     try:
-        polish_out, usage = polish_draft(draft)
+        polish_out, usage = polish_draft(provider, draft)
         _accumulate(usage)
         final_draft = _apply_polish(draft, polish_out)
     except Exception:
@@ -315,8 +323,8 @@ def run_generation(
     generation = GenerationMeta(
         resumeVersion=cv_updated_at,
         revisionCount=revision_count,
-        model=os.environ.get("TAILOR_LLM_MODEL", "claude-opus-5"),
-        provider="anthropic",
+        model=provider.model_name,
+        provider=provider.provider_name,
         inputTokens=total["inputTokens"],
         cachedInputTokens=total["cachedInputTokens"],
         outputTokens=total["outputTokens"],

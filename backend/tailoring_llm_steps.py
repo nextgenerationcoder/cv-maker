@@ -8,7 +8,7 @@ cache; job-specific/dynamic content always comes last, uncached.
 """
 import logging
 
-from llm_provider import LLMUsage, get_provider
+from llm_provider import LLMProvider, LLMUsage
 from tailoring_evidence import EvidenceItem, render_evidence_block
 from tailoring_models import (
     CVDraftLLMOutput,
@@ -81,10 +81,10 @@ Rules:
 """
 
 
-def analyze_job(job: dict) -> tuple[JobAnalysis, LLMUsage]:
+def analyze_job(provider: LLMProvider, job: dict) -> tuple[JobAnalysis, LLMUsage]:
     system_blocks = [_cached(JOB_ANALYSIS_RULES)]
     content_blocks = [_plain(f"JOB ADVERTISEMENT:\n{_job_block(job)}")]
-    return get_provider().structured_call(
+    return provider.structured_call(
         system_blocks=system_blocks,
         content_blocks=content_blocks,
         output_model=JobAnalysis,
@@ -132,14 +132,14 @@ Every judgment must be traceable to the evidence text given.
 
 
 def select_evidence_and_match(
-    evidence: list[EvidenceItem], job_analysis: JobAnalysis
+    provider: LLMProvider, evidence: list[EvidenceItem], job_analysis: JobAnalysis
 ) -> tuple[ResumeMatchResult, LLMUsage]:
     system_blocks = [_cached(SELECTION_RULES)]
     content_blocks = [
         _cached(f"CANDIDATE RESUME EVIDENCE:\n{render_evidence_block(evidence)}"),
         _plain(f"JOB ANALYSIS:\n{_job_analysis_block(job_analysis)}"),
     ]
-    return get_provider().structured_call(
+    return provider.structured_call(
         system_blocks=system_blocks,
         content_blocks=content_blocks,
         output_model=ResumeMatchResult,
@@ -186,7 +186,7 @@ def _group_key(evidence_type: str, entry_index: int) -> str:
 
 
 def generate_draft(
-    included_evidence: list[EvidenceItem], job_analysis: JobAnalysis
+    provider: LLMProvider, included_evidence: list[EvidenceItem], job_analysis: JobAnalysis
 ) -> tuple[CVDraftLLMOutput, LLMUsage]:
     work_groups: dict[str, list[EvidenceItem]] = {}
     edu_groups: dict[str, list[EvidenceItem]] = {}
@@ -217,7 +217,7 @@ def generate_draft(
         _cached("\n".join(groups_block_lines)),
         _plain(f"JOB ANALYSIS:\n{_job_analysis_block(job_analysis)}"),
     ]
-    draft, usage = get_provider().structured_call(
+    draft, usage = provider.structured_call(
         system_blocks=system_blocks,
         content_blocks=content_blocks,
         output_model=CVDraftLLMOutput,
@@ -253,13 +253,15 @@ bullets."}
 """
 
 
-def evaluate_cv(cv_summary_text: str, job_analysis: JobAnalysis) -> tuple[EvaluationResult, LLMUsage]:
+def evaluate_cv(
+    provider: LLMProvider, cv_summary_text: str, job_analysis: JobAnalysis
+) -> tuple[EvaluationResult, LLMUsage]:
     system_blocks = [_cached(EVAL_RULES)]
     content_blocks = [
         _plain(f"JOB ANALYSIS:\n{_job_analysis_block(job_analysis)}"),
         _plain(f"CV DRAFT:\n{cv_summary_text}"),
     ]
-    return get_provider().structured_call(
+    return provider.structured_call(
         system_blocks=system_blocks,
         content_blocks=content_blocks,
         output_model=EvaluationResult,
@@ -281,6 +283,7 @@ it as-is. Do not reorder groups or reshuffle unrelated bullets.
 
 
 def revise_draft(
+    provider: LLMProvider,
     included_evidence: list[EvidenceItem],
     job_analysis: JobAnalysis,
     current_draft: CVDraftLLMOutput,
@@ -313,7 +316,7 @@ def revise_draft(
         _plain(f"CURRENT DRAFT:\n{current_draft.model_dump_json(indent=2)}"),
         _plain(f"EVALUATOR FEEDBACK TO ADDRESS:\n{feedback_text}"),
     ]
-    return get_provider().structured_call(
+    return provider.structured_call(
         system_blocks=system_blocks,
         content_blocks=content_blocks,
         output_model=CVDraftLLMOutput,
@@ -334,7 +337,7 @@ exact same structure/order you were given.
 """
 
 
-def polish_draft(draft: CVDraftLLMOutput) -> tuple[PolishLLMOutput, LLMUsage]:
+def polish_draft(provider: LLMProvider, draft: CVDraftLLMOutput) -> tuple[PolishLLMOutput, LLMUsage]:
     import json as _json
 
     payload = {
@@ -345,7 +348,7 @@ def polish_draft(draft: CVDraftLLMOutput) -> tuple[PolishLLMOutput, LLMUsage]:
 
     system_blocks = [_cached(POLISH_RULES)]
     content_blocks = [_plain(f"DRAFT TO POLISH:\n{_json.dumps(payload, indent=2)}")]
-    return get_provider().structured_call(
+    return provider.structured_call(
         system_blocks=system_blocks,
         content_blocks=content_blocks,
         output_model=PolishLLMOutput,

@@ -8,6 +8,7 @@ from typing import Optional
 import cv_store
 import tailoring_store
 from auth import get_current_user
+from llm_provider import LLMProvider, get_provider_for_user
 from tailoring_evidence import build_evidence_pool
 from tailoring_models import JobAnalysis, ResumeMatchResult, TailoredCV
 from tailoring_orchestrator import run_generation, run_job_analysis, run_resume_match
@@ -45,12 +46,20 @@ def _require_job(job_id: str, user_id: str) -> dict:
     return job
 
 
+def _get_provider(user_id: str) -> LLMProvider:
+    try:
+        return get_provider_for_user(user_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
 @router.post("/jobs")
 def create_job(body: CreateJobRequest, current_user: dict = Depends(get_current_user)):
     _require_cv(body.cv_id, current_user["id"])
+    provider = _get_provider(current_user["id"])
     job = tailoring_store.create_job(current_user["id"], body.cv_id, body.model_dump())
     try:
-        job_analysis, _usage = run_job_analysis(job)
+        job_analysis, _usage = run_job_analysis(provider, job)
     except Exception:
         logger.exception("Job analysis failed for job_id=%s", job["id"])
         raise HTTPException(status_code=502, detail="Couldn't analyze this job posting. Try again shortly.")
@@ -82,9 +91,10 @@ def run_match(job_id: str, current_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=409, detail="Job hasn't been analyzed yet.")
     cv_record = _require_cv(job["cv_id"], current_user["id"])
     job_analysis = JobAnalysis.model_validate(job["job_analysis"])
+    provider = _get_provider(current_user["id"])
 
     try:
-        match, _evidence, _usage = run_resume_match(job["cv_id"], cv_record["profile"], job_analysis)
+        match, _evidence, _usage = run_resume_match(provider, job["cv_id"], cv_record["profile"], job_analysis)
     except Exception:
         logger.exception("Resume match failed for job_id=%s", job_id)
         raise HTTPException(status_code=502, detail="Couldn't run resume matching. Try again shortly.")
@@ -117,11 +127,12 @@ def generate_tailored_cv(job_id: str, current_user: dict = Depends(get_current_u
         raise HTTPException(status_code=409, detail="Job hasn't been analyzed yet.")
     cv_record = _require_cv(job["cv_id"], current_user["id"])
     job_analysis = JobAnalysis.model_validate(job["job_analysis"])
+    provider = _get_provider(current_user["id"])
 
     match_row = tailoring_store.fetch_match(job_id, current_user["id"], job["cv_id"])
     if match_row is None:
         try:
-            match, _evidence, _usage = run_resume_match(job["cv_id"], cv_record["profile"], job_analysis)
+            match, _evidence, _usage = run_resume_match(provider, job["cv_id"], cv_record["profile"], job_analysis)
         except Exception:
             logger.exception("Resume match failed during generate for job_id=%s", job_id)
             raise HTTPException(status_code=502, detail="Couldn't run resume matching. Try again shortly.")
@@ -132,7 +143,7 @@ def generate_tailored_cv(job_id: str, current_user: dict = Depends(get_current_u
 
     try:
         result = run_generation(
-            job["cv_id"], cv_record["profile"], cv_record["updated_at"], job_analysis, match
+            provider, job["cv_id"], cv_record["profile"], cv_record["updated_at"], job_analysis, match
         )
     except Exception:
         logger.exception("CV generation failed for job_id=%s", job_id)

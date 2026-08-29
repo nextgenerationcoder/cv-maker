@@ -1,8 +1,9 @@
 import logging
 from typing import List, Optional
 
-import anthropic
 from pydantic import BaseModel, Field
+
+from llm_provider import LLMProvider
 
 logger = logging.getLogger("cv_maker.job_scoring")
 
@@ -28,16 +29,6 @@ class JobScore(BaseModel):
 
 class JobScoreBatch(BaseModel):
     scores: List[JobScore]
-
-
-_client: Optional[anthropic.Anthropic] = None
-
-
-def _get_client() -> anthropic.Anthropic:
-    global _client
-    if _client is None:
-        _client = anthropic.Anthropic()
-    return _client
 
 
 def _experience_lines(experiences: list) -> str:
@@ -130,7 +121,7 @@ JOBS:
 """
 
 
-def score_jobs(profile: dict, jobs: List[JobInput]) -> List[JobScore]:
+def score_jobs(provider: LLMProvider, profile: dict, jobs: List[JobInput]) -> List[JobScore]:
     profile_summary = _build_profile_summary(profile) or "(no profile information provided)"
     jobs_block = "\n\n".join(
         f"[id={job.id}] {job.title} at {job.company or 'Unknown company'}"
@@ -142,10 +133,10 @@ def score_jobs(profile: dict, jobs: List[JobInput]) -> List[JobScore]:
     )
     prompt = SCORE_PROMPT_TEMPLATE.format(profile_summary=profile_summary, jobs_block=jobs_block)
 
-    response = _get_client().messages.parse(
-        model="claude-opus-5",
+    result, _usage = provider.structured_call(
+        system_blocks=[],
+        content_blocks=[{"type": "text", "text": prompt}],
+        output_model=JobScoreBatch,
         max_tokens=8000,
-        messages=[{"role": "user", "content": prompt}],
-        output_format=JobScoreBatch,
     )
-    return response.parsed_output.scores
+    return result.scores

@@ -1,13 +1,13 @@
 import logging
 from typing import List
 
-import anthropic
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 import cv_store
 from auth import get_current_user
 from job_scoring import MAX_JOBS_PER_REQUEST, JobInput, score_jobs
+from llm_provider import get_provider_for_user
 
 logger = logging.getLogger("cv_maker.jobs_score")
 
@@ -36,8 +36,13 @@ def score_jobs_endpoint(
         raise HTTPException(status_code=404, detail="CV not found.")
 
     try:
-        scores = score_jobs(cv_record["profile"], body.jobs)
-    except anthropic.APIStatusError:
+        provider = get_provider_for_user(current_user["id"])
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    try:
+        scores = score_jobs(provider, cv_record["profile"], body.jobs)
+    except Exception:
         logger.exception("Job scoring failed for cv_id=%r", body.cv_id)
         raise HTTPException(
             status_code=502,
