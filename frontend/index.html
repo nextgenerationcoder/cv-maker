@@ -38,6 +38,11 @@
         <option value="glassdoor">Glassdoor</option>
         <option value="google">Google</option>
       </select>
+      <input
+        type="text"
+        id="country-indeed"
+        placeholder="Country for Indeed/Glassdoor (default USA)"
+      />
 
       <input
         type="number"
@@ -85,7 +90,11 @@
     <p class="hint keyword-hint">
       Include/exclude match against each job's title, description, and
       company — checked after scraping, since most job boards don't
-      support this in their own search.
+      support this in their own search. Indeed and Glassdoor also search
+      a specific country's site — set "Country for Indeed/Glassdoor" to
+      match your Location (e.g. "Germany"), or you'll silently get 0
+      results even though jobs exist. LinkedIn and Google aren't affected
+      by this.
     </p>
     <p id="status"></p>
 

@@ -125,6 +125,7 @@ form.addEventListener("submit", async (event) => {
   const easyApply = document.getElementById("easy-apply").checked;
   const includeKeywords = document.getElementById("include-keywords").value.trim();
   const excludeKeywords = document.getElementById("exclude-keywords").value.trim();
+  const countryIndeed = document.getElementById("country-indeed").value.trim();
 
   resultsEl.innerHTML = "";
   statusEl.textContent = "Searching...";
@@ -141,6 +142,7 @@ form.addEventListener("submit", async (event) => {
   if (easyApply) params.set("easy_apply", "true");
   if (includeKeywords) params.set("include_keywords", includeKeywords);
   if (excludeKeywords) params.set("exclude_keywords", excludeKeywords);
+  if (countryIndeed) params.set("country_indeed", countryIndeed);
 
   try {
     const response = await authFetch(`${API_BASE}/api/jobs?${params.toString()}`);
