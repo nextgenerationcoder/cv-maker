@@ -211,6 +211,12 @@ resultsEl.addEventListener("click", async (event) => {
     return;
   }
 
+  const tailorBtn = event.target.closest(".tailor-cv-btn");
+  if (tailorBtn) {
+    await tailorCvForJob(tailorBtn);
+    return;
+  }
+
   const btn = event.target.closest(".check-match-btn");
   if (!btn) return;
 
@@ -254,6 +260,47 @@ resultsEl.addEventListener("click", async (event) => {
     btn.insertAdjacentHTML("afterend", `<span class="score-error">${escapeHtml(err.message)}</span>`);
   }
 });
+
+async function tailorCvForJob(btn) {
+  const index = Number(btn.dataset.index);
+  const job = lastJobs[index];
+  const cvId = scoreCvSelectEl.value;
+  if (!cvId) {
+    btn.insertAdjacentHTML("afterend", '<span class="score-error">Select a CV first.</span>');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Saving…";
+
+  const body = {
+    cv_id: cvId,
+    title: job.title || "Untitled role",
+    company: job.company || null,
+    location: job.location || null,
+    description: job.description || null,
+    job_url: job.job_url || null,
+    job_type: Array.isArray(job.job_type) ? job.job_type.join(", ") : job.job_type || null,
+  };
+
+  try {
+    const response = await authFetch(`${API_BASE}/api/tailoring/jobs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      throw new Error(errorBody.detail || `Request failed with ${response.status}`);
+    }
+    const savedJob = await response.json();
+    window.location.href = `job-detail.html?job_id=${encodeURIComponent(savedJob.id)}`;
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = "Tailor CV for this job";
+    btn.insertAdjacentHTML("afterend", `<span class="score-error">${escapeHtml(err.message)}</span>`);
+  }
+}
 
 async function saveSelectedGaps(btn) {
   const index = Number(btn.dataset.jobIndex);
@@ -314,13 +361,19 @@ function renderResults(jobs) {
       : hasSavedCv
       ? `<button type="button" class="check-match-btn" data-index="${index}">Check match?</button>`
       : "";
+    const tailorHtml = hasSavedCv
+      ? `<button type="button" class="tailor-cv-btn" data-index="${index}">Tailor CV for this job</button>`
+      : "";
 
     li.innerHTML = `
       <h3>${escapeHtml(title)}</h3>
       <p>${escapeHtml(company)}${location ? " — " + escapeHtml(location) : ""}</p>
       ${meta ? `<p class="meta">${meta}</p>` : ""}
       ${scoreHtml}
-      <a href="${url}" target="_blank" rel="noopener noreferrer">View job</a>
+      <div class="job-actions">
+        <a href="${url}" target="_blank" rel="noopener noreferrer">View job</a>
+        ${tailorHtml}
+      </div>
     `;
     resultsEl.appendChild(li);
   });

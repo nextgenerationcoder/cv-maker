@@ -245,3 +245,72 @@ removes it from the learning list); "Remove" just drops it.
   `occurrences` desc then `last_flagged_at` desc.
 - `DELETE /api/cv/{id}/learning/{item_id}` — remove an item. 404 if it
   doesn't exist.
+
+## CV tailoring
+
+Given a saved CV and a specific job, generate a CV tailored to that job —
+never inventing facts. The resume database (`CVProfile`) is the single
+source of truth: the AI may select, prioritize, exclude, rewrite, shorten,
+and improve wording, but company names, roles, employment dates,
+locations, degrees, and institutions are always copied verbatim from the
+database by the backend — the model is never asked to reproduce them, so
+they can't drift. Every generated bullet must cite the resume item(s) it's
+based on; a bullet whose sourceIds don't check out, or whose text contains
+a number not present in its cited source, is dropped before the CV is
+returned rather than shown as a fact.
+
+Pipeline (`backend/tailoring_orchestrator.py`, `tailoring_llm_steps.py`):
+job analysis → evidence selection + resume match → CV draft (wording
+only — structural facts filled in separately) → evaluation (score 0-100,
+`TAILOR_PASS_SCORE`, default 75) → up to `TAILOR_MAX_REVISIONS` (default
+2) targeted revisions if it doesn't pass → final wording-only polish pass
+→ grounding validation → stored as a new version. Each stage is a
+separate, narrowly-scoped LLM call (`backend/llm_provider.py`, model
+`TAILOR_LLM_MODEL`, default `claude-opus-5`); prompts put the candidate's
+resume evidence behind a `cache_control` breakpoint ahead of job-specific
+content, so repeated calls in one generation (and regenerations of the
+same CV) can hit Anthropic's prompt cache.
+
+Resume items get stable IDs derived from their own content (not stored in
+the DB), so appending new experience needs no migration or rewrite —
+existing items keep their ID unless their own text is edited.
+
+### Flow
+
+1. **Job Search** page: click "Tailor CV for this job" on a result (or add
+   one manually on the **Tailored CVs** page) — this saves the job and
+   runs job analysis.
+2. **Job detail** page: resume match runs automatically (score, strong/
+   partial/missing requirements, ATS keyword coverage), with an
+   expandable review of exactly which resume items were included/maybe/
+   excluded and why. Missing requirements can be sent to the CV page's
+   existing gap-review flow ("do you have real experience with this?") —
+   tailoring never asks you to invent something to satisfy a job.
+3. Click **Generate Tailored CV** to run the full pipeline. The result is
+   a versioned, editable document-style CV with a provenance note under
+   each bullet ("Based on N experiences"), a sidebar with match/
+   generation info, Edit/Save (edits only change this tailored CV, never
+   the resume database), Export JSON, Print/Save-as-PDF, a version
+   history dropdown, and Regenerate.
+
+### API (`/api/tailoring/*`, all require auth, all scoped to the caller)
+
+- `POST /jobs` — `{cv_id, title, company?, location?, description?,
+  job_url?, job_type?}` → saves the job and runs job analysis. Returns
+  the job with `job_analysis` populated.
+- `GET /jobs`, `GET /jobs/{id}`, `DELETE /jobs/{id}`
+- `GET /jobs/{id}/evidence` — the CV's evidence pool (id, type, company/
+  role/institution, period, bullet, skills) for building an evidence
+  review UI.
+- `POST /jobs/{id}/match` / `GET /jobs/{id}/match` — run/fetch resume
+  match: `{matchScore, strongMatches, partialMatches, missingRequirements,
+  atsKeywordsCovered, selection: [{sourceId, relevanceScore, decision,
+  matchedRequirements, matchedKeywords, reason}]}`.
+- `POST /jobs/{id}/generate` — runs the full pipeline (running match
+  first if it hasn't been run yet) and stores a new version. Returns
+  `{id, version_number, cv, selection, provenance, evaluation,
+  generation}`.
+- `GET /jobs/{id}/tailored-cvs` — version history for a job.
+- `GET /tailored-cvs/{id}`, `PATCH /tailored-cvs/{id}` (body `{cv}`,
+  edits presentation only), `POST /tailored-cvs/{id}/regenerate`,
+  `GET /tailored-cvs/{id}/export.json`.

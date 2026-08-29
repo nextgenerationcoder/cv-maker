@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CV Maker - Tailored CV</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="container tailoring-page">
+    <nav class="top-nav no-print">
+      <a href="index.html">Job Search</a>
+      <a href="cv.html">Upload CV</a>
+      <a href="learning.html">Skills to Learn</a>
+      <a href="jobs.html" class="active">Tailored CVs</a>
+      <span id="account-bar" class="account-bar"></span>
+    </nav>
+
+    <div class="no-print">
+      <p><a href="jobs.html">&larr; Back to Tailored CVs</a></p>
+      <h1 id="job-title-heading">Loading…</h1>
+      <p id="job-meta" class="hint"></p>
+
+      <section id="match-section">
+        <h2>Resume Match</h2>
+        <p id="match-status" class="hint">Analyzing…</p>
+        <div id="match-content" hidden>
+          <div class="match-score-row">
+            <div class="match-score-bar"><div id="match-score-fill" class="match-score-fill"></div></div>
+            <span id="match-score-label" class="match-score-label"></span>
+          </div>
+          <div class="match-columns">
+            <div>
+              <h3 class="match-col-strong">Strong matches</h3>
+              <ul id="match-strong" class="match-col-list"></ul>
+            </div>
+            <div>
+              <h3 class="match-col-partial">Partial</h3>
+              <ul id="match-partial" class="match-col-list"></ul>
+            </div>
+            <div>
+              <h3 class="match-col-missing">Missing</h3>
+              <ul id="match-missing" class="match-col-list"></ul>
+              <p class="hint">Missing doesn't mean disqualifying — it's just what we couldn't find evidence for.</p>
+              <button id="add-missing-to-gaps-btn" type="button" class="add-entry-btn" hidden>Do you have real experience with these?</button>
+              <p id="gaps-hint" class="hint" hidden>
+                Added — review and resolve them on the <a href="cv.html">Upload CV</a> page's "Missing experiences" section.
+              </p>
+            </div>
+          </div>
+          <p id="match-ats" class="hint"></p>
+        </div>
+      </section>
+
+      <section id="evidence-section" hidden>
+        <h2>Which experience was used
+          <button id="toggle-evidence-btn" class="link-btn" type="button">Show details</button>
+        </h2>
+        <div id="evidence-list" class="entry-list-edit" hidden></div>
+      </section>
+
+      <section id="generate-section">
+        <button id="generate-btn" type="button" class="add-entry-btn" disabled>Generate Tailored CV</button>
+        <p id="generate-status" class="hint"></p>
+      </section>
+    </div>
+
+    <section id="cv-review-section" hidden>
+      <div class="tailoring-layout">
+        <div class="cv-preview-col">
+          <div class="cv-preview-toolbar no-print">
+            <select id="version-select"></select>
+            <button id="edit-toggle-btn" type="button" class="add-entry-btn">Edit</button>
+            <button id="save-cv-btn" type="button" class="add-entry-btn" hidden>Save changes</button>
+            <a id="export-cv-link" href="#" class="add-entry-btn">Export JSON</a>
+            <button id="print-cv-btn" type="button" class="add-entry-btn">Print / Save PDF</button>
+          </div>
+          <p id="cv-save-status" class="hint no-print"></p>
+          <div id="cv-preview" class="cv-document"></div>
+        </div>
+        <aside class="cv-sidebar no-print">
+          <h3>Generation info</h3>
+          <dl id="sidebar-info" class="sidebar-dl"></dl>
+        </aside>
+      </div>
+    </section>
+  </main>
+  <script src="auth.js"></script>
+  <script>if (!requireAuth()) document.querySelector("main").hidden = true;</script>
+  <script src="job-detail.js"></script>
+</body>
+</html>

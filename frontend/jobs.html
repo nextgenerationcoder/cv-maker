@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CV Maker - Tailored CVs</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="container">
+    <nav class="top-nav">
+      <a href="index.html">Job Search</a>
+      <a href="cv.html">Upload CV</a>
+      <a href="learning.html">Skills to Learn</a>
+      <a href="jobs.html" class="active">Tailored CVs</a>
+      <span id="account-bar" class="account-bar"></span>
+    </nav>
+    <h1>Tailored CVs</h1>
+    <p class="hint">
+      Jobs you've saved for tailoring. Open one to see how your resume
+      matches, then generate a CV built specifically for it.
+    </p>
+
+    <details class="add-job-details">
+      <summary>+ Add a job manually</summary>
+      <form id="add-job-form" class="cv-edit-form">
+        <label class="field"><span>CV to use</span>
+          <select id="add-job-cv-select"></select>
+        </label>
+        <label class="field"><span>Job title</span><input type="text" id="add-job-title" required /></label>
+        <label class="field"><span>Company</span><input type="text" id="add-job-company" /></label>
+        <label class="field"><span>Location</span><input type="text" id="add-job-location" /></label>
+        <label class="field"><span>Job URL</span><input type="url" id="add-job-url" /></label>
+        <label class="field"><span>Job description / posting text</span>
+          <textarea id="add-job-description" rows="6"></textarea>
+        </label>
+        <button type="submit">Save &amp; analyze</button>
+      </form>
+      <p id="add-job-status" class="hint"></p>
+    </details>
+
+    <ul id="jobs-list" class="entry-list-edit"></ul>
+    <p id="jobs-status" class="hint"></p>
+  </main>
+  <script src="auth.js"></script>
+  <script>if (!requireAuth()) document.querySelector("main").hidden = true;</script>
+  <script src="jobs.js"></script>
+</body>
+</html>

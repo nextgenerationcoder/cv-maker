@@ -501,3 +501,275 @@ body {
 #learning-cv-bar {
   margin-top: 1rem;
 }
+
+/* ---------- Tailored CV feature ---------- */
+
+.add-job-details {
+  margin-bottom: 1.5rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+}
+
+.add-job-details summary {
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #444;
+}
+
+.add-job-details form {
+  margin-top: 0.75rem;
+}
+
+.job-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.4rem;
+}
+
+.tailor-cv-btn {
+  font-size: 0.85rem;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid #999;
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+}
+
+.match-score-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.match-score-bar {
+  flex: 1;
+  height: 0.6rem;
+  border-radius: 999px;
+  background: #eee;
+  overflow: hidden;
+}
+
+.match-score-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.match-score-fill.score-strong { background: #16a34a; }
+.match-score-fill.score-good { background: #2563eb; }
+.match-score-fill.score-stretch { background: #d97706; }
+.match-score-fill.score-weak { background: #dc2626; }
+
+.match-score-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.match-columns {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.match-columns h3 {
+  font-size: 0.85rem;
+  margin: 0 0 0.35rem;
+}
+
+.match-col-strong { color: #166534; }
+.match-col-partial { color: #92400e; }
+.match-col-missing { color: #991b1b; }
+
+.match-col-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.match-col-list li {
+  margin-bottom: 0.25rem;
+}
+
+.evidence-card {
+  background: #fafafa;
+}
+
+.evidence-badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  margin-bottom: 0.4rem;
+}
+
+.evidence-include { background: #dcfce7; color: #166534; }
+.evidence-maybe { background: #fef3c7; color: #92400e; }
+.evidence-exclude { background: #f3f4f6; color: #6b7280; }
+
+.evidence-text {
+  font-size: 0.9rem;
+  margin: 0 0 0.25rem;
+}
+
+.evidence-reason {
+  margin-top: 0.35rem;
+}
+
+.tailoring-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 800px) {
+  .tailoring-layout {
+    grid-template-columns: 1fr;
+  }
+  .match-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+#cv-review-section {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
+.cv-preview-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.cv-preview-toolbar select {
+  padding: 0.35rem 0.5rem;
+}
+
+.cv-document {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.cv-doc-header h2 {
+  margin: 0 0 0.15rem;
+}
+
+.cv-doc-jobtitle {
+  color: #444;
+  margin: 0 0 0.25rem;
+}
+
+.cv-doc-contact {
+  color: #666;
+  font-size: 0.85rem;
+  margin: 0 0 1rem;
+}
+
+.cv-doc-section {
+  margin-top: 1.25rem;
+}
+
+.cv-doc-section h3 {
+  font-size: 0.95rem;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 0.25rem;
+  margin: 0 0 0.5rem;
+}
+
+.cv-doc-entry {
+  margin-bottom: 1rem;
+}
+
+.cv-doc-entry-title {
+  font-weight: 600;
+  margin: 0;
+}
+
+.cv-doc-bullet {
+  margin-bottom: 0.3rem;
+}
+
+.source-toggle {
+  display: block;
+  background: none;
+  border: none;
+  color: #2563eb;
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0.1rem 0;
+}
+
+.source-detail {
+  font-size: 0.8rem;
+  color: #555;
+  background: #f8fafc;
+  border-left: 2px solid #ccc;
+  padding: 0.3rem 0.5rem;
+  margin: 0.2rem 0 0.4rem;
+}
+
+.cv-document-edit textarea,
+.cv-document-edit input {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-bottom: 0.4rem;
+}
+
+.cv-sidebar {
+  background: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.cv-sidebar h3 {
+  margin: 0 0 0.6rem;
+  font-size: 0.9rem;
+}
+
+.sidebar-dl {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.sidebar-dl dt {
+  color: #888;
+  margin-top: 0.5rem;
+}
+
+.sidebar-dl dd {
+  margin: 0;
+  color: #222;
+  font-weight: 500;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .tailoring-layout {
+    display: block;
+  }
+  .cv-document {
+    border: none;
+    padding: 0;
+  }
+}
