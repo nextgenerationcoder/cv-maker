@@ -7,6 +7,7 @@ const addJobCvSelect = document.getElementById("add-job-cv-select");
 const addJobStatusEl = document.getElementById("add-job-status");
 const fetchJobUrlBtn = document.getElementById("fetch-job-url-btn");
 const fetchJobStatusEl = document.getElementById("fetch-job-status");
+const fetchWrongBtn = document.getElementById("fetch-wrong-btn");
 
 async function loadCvOptions() {
   try {
@@ -151,11 +152,23 @@ fetchJobUrlBtn.addEventListener("click", async () => {
     if (data.location) document.getElementById("add-job-location").value = data.location;
     if (data.description) document.getElementById("add-job-description").value = data.description;
     fetchJobStatusEl.textContent = "Filled in below — review and edit before saving.";
+    fetchWrongBtn.hidden = false;
   } catch (err) {
     fetchJobStatusEl.textContent = `${err.message}`;
   } finally {
     fetchJobUrlBtn.disabled = false;
   }
+});
+
+fetchWrongBtn.addEventListener("click", () => {
+  document.getElementById("add-job-title").value = "";
+  document.getElementById("add-job-company").value = "";
+  document.getElementById("add-job-location").value = "";
+  const descriptionEl = document.getElementById("add-job-description");
+  descriptionEl.value = "";
+  fetchJobStatusEl.textContent = "Cleared — paste the title and description in yourself below.";
+  fetchWrongBtn.hidden = true;
+  descriptionEl.focus();
 });
 
 loadCvOptions();
