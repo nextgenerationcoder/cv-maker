@@ -94,7 +94,7 @@ def run_match(job_id: str, current_user: dict = Depends(get_current_user)):
     provider = _get_provider(current_user["id"])
 
     try:
-        match, _evidence, _usage = run_resume_match(provider, job["cv_id"], cv_record["profile"], job_analysis)
+        match, _evidence, _usage = run_resume_match(provider, job["cv_id"], cv_record["profile"], job_analysis, [i["text"] for i in cv_store.list_ignored(job["cv_id"])])
     except Exception:
         logger.exception("Resume match failed for job_id=%s", job_id)
         raise HTTPException(status_code=502, detail="Couldn't run resume matching. Try again shortly.")
@@ -132,7 +132,7 @@ def generate_tailored_cv(job_id: str, current_user: dict = Depends(get_current_u
     match_row = tailoring_store.fetch_match(job_id, current_user["id"], job["cv_id"])
     if match_row is None:
         try:
-            match, _evidence, _usage = run_resume_match(provider, job["cv_id"], cv_record["profile"], job_analysis)
+            match, _evidence, _usage = run_resume_match(provider, job["cv_id"], cv_record["profile"], job_analysis, [i["text"] for i in cv_store.list_ignored(job["cv_id"])])
         except Exception:
             logger.exception("Resume match failed during generate for job_id=%s", job_id)
             raise HTTPException(status_code=502, detail="Couldn't run resume matching. Try again shortly.")

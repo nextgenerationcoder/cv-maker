@@ -47,21 +47,43 @@ def run_job_analysis(provider: LLMProvider, job: dict) -> tuple[JobAnalysis, dic
     return ja, {"inputTokens": usage.input_tokens, "cachedInputTokens": usage.cached_input_tokens, "outputTokens": usage.output_tokens}
 
 
+def _matches_ignored(requirement: str, ignored_keys: set[str]) -> bool:
+    key = " ".join(requirement.lower().split())
+    return key in ignored_keys or any(key in ik or ik in key for ik in ignored_keys)
+
+
 def run_resume_match(
-    provider: LLMProvider, cv_id: str, profile: dict, job_analysis: JobAnalysis
+    provider: LLMProvider,
+    cv_id: str,
+    profile: dict,
+    job_analysis: JobAnalysis,
+    ignored_requirements: Optional[list[str]] = None,
 ) -> tuple[ResumeMatchResult, list[EvidenceItem], dict]:
+    ignored_requirements = ignored_requirements or []
     evidence_pool = build_evidence_pool(cv_id, profile)
     if not evidence_pool:
+        ignored_keys = {" ".join(t.lower().split()) for t in ignored_requirements}
         empty = ResumeMatchResult(
             matchScore=0,
             strongMatches=[],
             partialMatches=[],
-            missingRequirements=list(job_analysis.requiredSkills),
+            missingRequirements=[
+                r for r in job_analysis.requiredSkills if not _matches_ignored(r, ignored_keys)
+            ],
             atsKeywordsCovered=[],
             selection=[],
         )
         return empty, evidence_pool, {"inputTokens": 0, "cachedInputTokens": 0, "outputTokens": 0}
-    match, usage = select_evidence_and_match(provider, evidence_pool, job_analysis)
+    match, usage = select_evidence_and_match(provider, evidence_pool, job_analysis, ignored_requirements)
+    if ignored_requirements:
+        ignored_keys = {" ".join(t.lower().split()) for t in ignored_requirements}
+        match = match.model_copy(
+            update={
+                "missingRequirements": [
+                    r for r in match.missingRequirements if not _matches_ignored(r, ignored_keys)
+                ]
+            }
+        )
     return match, evidence_pool, {
         "inputTokens": usage.input_tokens,
         "cachedInputTokens": usage.cached_input_tokens,

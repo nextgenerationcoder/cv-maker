@@ -178,22 +178,28 @@ function scoreBadgeHtml(score, jobIndex) {
   const missingHtml = missing.length
     ? `
       <div class="missing-gaps" data-job-index="${jobIndex}">
-        <p class="missing-label">Missing — check what you actually have experience with:</p>
+        <p class="missing-label">Missing — for each one, tell us what's actually true:</p>
         <ul class="missing-list">
           ${missing
             .map(
               (m) => `
-            <li>
-              <label>
-                <input type="checkbox" class="missing-checkbox" value="${escapeAttr(m)}" checked />
-                ${escapeHtml(m)}
-              </label>
+            <li class="missing-item" data-text="${escapeAttr(m)}">
+              <span class="missing-text">${escapeHtml(m)}</span>
+              <div class="missing-actions">
+                <button type="button" class="missing-have-btn">I have this</button>
+                <button type="button" class="missing-learn-btn">Track to learn</button>
+                <button type="button" class="missing-ignore-btn">Not relevant to me</button>
+              </div>
+              <div class="missing-have-form" hidden>
+                <input type="text" class="missing-have-input" value="${escapeAttr(m)}" />
+                <input type="text" class="missing-have-category" placeholder="Tool category (e.g. tools)" value="tools" />
+                <button type="button" class="missing-have-save-btn">Add to CV</button>
+              </div>
+              <span class="missing-item-status"></span>
             </li>`
             )
             .join("")}
         </ul>
-        <button type="button" class="save-gaps-btn" data-job-index="${jobIndex}">Add selected to CV gaps</button>
-        <span class="gaps-status"></span>
       </div>
     `
     : "";
@@ -205,9 +211,29 @@ function scoreBadgeHtml(score, jobIndex) {
 }
 
 resultsEl.addEventListener("click", async (event) => {
-  const saveGapsBtn = event.target.closest(".save-gaps-btn");
-  if (saveGapsBtn) {
-    await saveSelectedGaps(saveGapsBtn);
+  const haveBtn = event.target.closest(".missing-have-btn");
+  if (haveBtn) {
+    const li = haveBtn.closest(".missing-item");
+    li.querySelector(".missing-have-form").hidden = false;
+    haveBtn.closest(".missing-actions").hidden = true;
+    return;
+  }
+
+  const haveSaveBtn = event.target.closest(".missing-have-save-btn");
+  if (haveSaveBtn) {
+    await addMissingItemToCv(haveSaveBtn.closest(".missing-item"));
+    return;
+  }
+
+  const learnBtn = event.target.closest(".missing-learn-btn");
+  if (learnBtn) {
+    await trackMissingItemToLearn(learnBtn.closest(".missing-item"));
+    return;
+  }
+
+  const ignoreBtn = event.target.closest(".missing-ignore-btn");
+  if (ignoreBtn) {
+    await markMissingItemIgnored(ignoreBtn.closest(".missing-item"));
     return;
   }
 
@@ -302,39 +328,96 @@ async function tailorCvForJob(btn) {
   }
 }
 
-async function saveSelectedGaps(btn) {
-  const index = Number(btn.dataset.jobIndex);
-  const container = btn.closest(".missing-gaps");
-  const statusEl = container.querySelector(".gaps-status");
-  const checked = Array.from(container.querySelectorAll(".missing-checkbox:checked")).map((c) => c.value);
-
-  if (!checked.length) {
-    statusEl.textContent = "Select at least one item first.";
-    return;
+function removeMissingItem(li) {
+  const list = li.closest(".missing-list");
+  li.remove();
+  if (list && !list.children.length) {
+    list.closest(".missing-gaps").querySelector(".missing-label").textContent = "Nothing missing — nice.";
   }
+}
+
+// "I have this" — the user writes it in their own words and it's added
+// straight to the CV's tools. The raw AI-flagged phrase is never
+// inserted verbatim; what the user actually types is what gets saved.
+async function addMissingItemToCv(li) {
   const cvId = scoreCvSelectEl.value;
+  const statusEl = li.querySelector(".missing-item-status");
+  const text = li.querySelector(".missing-have-input").value.trim();
+  const category = li.querySelector(".missing-have-category").value.trim() || "tools";
+  if (!text) return;
   if (!cvId) {
     statusEl.textContent = "Select a CV first.";
     return;
   }
 
-  const job = lastJobs[index];
-  btn.disabled = true;
+  const saveBtn = li.querySelector(".missing-have-save-btn");
+  saveBtn.disabled = true;
   statusEl.textContent = "Saving…";
 
   try {
-    const response = await authFetch(`${API_BASE}/api/cv/${cvId}/gaps`, {
+    const cvResponse = await authFetch(`${API_BASE}/api/cv/${cvId}`);
+    if (!cvResponse.ok) throw new Error(`Request failed with ${cvResponse.status}`);
+    const record = await cvResponse.json();
+    const profile = record.profile;
+    profile.tools = profile.tools || {};
+    profile.tools[category] = profile.tools[category] || [];
+    profile.tools[category].push({ name: text, level: null });
+
+    const putResponse = await authFetch(`${API_BASE}/api/cv/${cvId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profile, filename: record.filename }),
+    });
+    if (!putResponse.ok) throw new Error(`Request failed with ${putResponse.status}`);
+
+    removeMissingItem(li);
+  } catch (err) {
+    saveBtn.disabled = false;
+    statusEl.textContent = `Error: ${err.message}`;
+  }
+}
+
+// "Track to learn" — goes on the Skills to Learn list instead of the CV.
+async function trackMissingItemToLearn(li) {
+  const cvId = scoreCvSelectEl.value;
+  const statusEl = li.querySelector(".missing-item-status");
+  if (!cvId) {
+    statusEl.textContent = "Select a CV first.";
+    return;
+  }
+  const text = li.dataset.text;
+  try {
+    const response = await authFetch(`${API_BASE}/api/cv/${cvId}/learning`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items: checked, source: job?.title || null }),
+      body: JSON.stringify({ text }),
     });
-    if (!response.ok) {
-      const errorBody = await response.json().catch(() => ({}));
-      throw new Error(errorBody.detail || `Request failed with ${response.status}`);
-    }
-    statusEl.textContent = `Added ${checked.length} to "Missing experiences" on the Upload CV page.`;
+    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+    removeMissingItem(li);
   } catch (err) {
-    btn.disabled = false;
+    statusEl.textContent = `Error: ${err.message}`;
+  }
+}
+
+// "Not relevant to me" — tells future AI scoring/matching for this CV to
+// stop flagging this requirement, instead of re-surfacing it every time.
+async function markMissingItemIgnored(li) {
+  const cvId = scoreCvSelectEl.value;
+  const statusEl = li.querySelector(".missing-item-status");
+  if (!cvId) {
+    statusEl.textContent = "Select a CV first.";
+    return;
+  }
+  const text = li.dataset.text;
+  try {
+    const response = await authFetch(`${API_BASE}/api/cv/${cvId}/ignored`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+    removeMissingItem(li);
+  } catch (err) {
     statusEl.textContent = `Error: ${err.message}`;
   }
 }

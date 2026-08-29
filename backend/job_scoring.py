@@ -113,6 +113,13 @@ requirements (empty list if there aren't any). Some job postings below may
 have no description text available — in that case, judge only from the
 title/company/location and say so isn't enough to be confident.
 
+The candidate has told us the following are NOT worth flagging as missing
+— either not relevant to the roles they want, or something they've since
+gained real experience with. Never list any of these (or close variants
+of the same underlying thing) in missing_requirements, and don't let them
+lower the score:
+{ignored_block}
+
 CANDIDATE PROFILE:
 {profile_summary}
 
@@ -121,7 +128,15 @@ JOBS:
 """
 
 
-def score_jobs(provider: LLMProvider, profile: dict, jobs: List[JobInput]) -> List[JobScore]:
+def _matches_ignored(requirement: str, ignored_keys: set[str]) -> bool:
+    key = " ".join(requirement.lower().split())
+    return key in ignored_keys or any(key in ik or ik in key for ik in ignored_keys)
+
+
+def score_jobs(
+    provider: LLMProvider, profile: dict, jobs: List[JobInput], ignored_requirements: Optional[List[str]] = None
+) -> List[JobScore]:
+    ignored_requirements = ignored_requirements or []
     profile_summary = _build_profile_summary(profile) or "(no profile information provided)"
     jobs_block = "\n\n".join(
         f"[id={job.id}] {job.title} at {job.company or 'Unknown company'}"
@@ -131,7 +146,10 @@ def score_jobs(provider: LLMProvider, profile: dict, jobs: List[JobInput]) -> Li
         + (job.description or "No description available.")[:MAX_DESCRIPTION_CHARS]
         for job in jobs
     )
-    prompt = SCORE_PROMPT_TEMPLATE.format(profile_summary=profile_summary, jobs_block=jobs_block)
+    ignored_block = ", ".join(ignored_requirements) if ignored_requirements else "(none)"
+    prompt = SCORE_PROMPT_TEMPLATE.format(
+        profile_summary=profile_summary, jobs_block=jobs_block, ignored_block=ignored_block
+    )
 
     result, _usage = provider.structured_call(
         system_blocks=[],
@@ -139,4 +157,13 @@ def score_jobs(provider: LLMProvider, profile: dict, jobs: List[JobInput]) -> Li
         output_model=JobScoreBatch,
         max_tokens=8000,
     )
+
+    if not ignored_requirements:
+        return result.scores
+
+    ignored_keys = {" ".join(t.lower().split()) for t in ignored_requirements}
+    for score in result.scores:
+        score.missing_requirements = [
+            r for r in score.missing_requirements if not _matches_ignored(r, ignored_keys)
+        ]
     return result.scores

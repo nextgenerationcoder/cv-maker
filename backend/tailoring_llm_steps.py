@@ -7,6 +7,7 @@ regenerations of the same CV — can be served from Anthropic's prompt
 cache; job-specific/dynamic content always comes last, uncached.
 """
 import logging
+from typing import Optional
 
 from llm_provider import LLMProvider, LLMUsage
 from tailoring_evidence import EvidenceItem, render_evidence_block
@@ -128,16 +129,27 @@ Then produce an overall resume-match summary:
 
 Never infer a skill for a candidate just because it would help the match.
 Every judgment must be traceable to the evidence text given.
+
+The candidate has told us the following are NOT worth flagging as
+missing — either not relevant to the roles they want, or something
+they've since gained real experience with. Never list any of these (or
+close variants of the same underlying thing) in missingRequirements, and
+don't let them lower matchScore.
 """
 
 
 def select_evidence_and_match(
-    provider: LLMProvider, evidence: list[EvidenceItem], job_analysis: JobAnalysis
+    provider: LLMProvider,
+    evidence: list[EvidenceItem],
+    job_analysis: JobAnalysis,
+    ignored_requirements: Optional[list[str]] = None,
 ) -> tuple[ResumeMatchResult, LLMUsage]:
+    ignored_block = ", ".join(ignored_requirements) if ignored_requirements else "(none)"
     system_blocks = [_cached(SELECTION_RULES)]
     content_blocks = [
         _cached(f"CANDIDATE RESUME EVIDENCE:\n{render_evidence_block(evidence)}"),
         _plain(f"JOB ANALYSIS:\n{_job_analysis_block(job_analysis)}"),
+        _plain(f"NOT WORTH FLAGGING AS MISSING: {ignored_block}"),
     ]
     return provider.structured_call(
         system_blocks=system_blocks,

@@ -13,9 +13,6 @@ const educationEntriesEl = document.getElementById("education-entries");
 const trainingEntriesEl = document.getElementById("training-entries");
 const languageEntriesEl = document.getElementById("language-entries");
 const toolsContainerEl = document.getElementById("tools-container");
-const gapsSectionEl = document.getElementById("gaps-section");
-const gapsListEl = document.getElementById("gaps-list");
-const refreshGapsBtn = document.getElementById("refresh-gaps-btn");
 
 let currentCvId = null;
 const LAST_CV_ID_KEY = "cvMakerLastCvId";
@@ -384,7 +381,6 @@ uploadForm.addEventListener("submit", async (event) => {
     loadProfileIntoForm(data.filename, data.profile);
     exportJsonLink.href = `${API_BASE}/api/cv/${currentCvId}/export.json`;
     exportJsonLink.hidden = false;
-    loadGaps();
   } catch (err) {
     statusEl.textContent = `Error: ${err.message}`;
   }
@@ -419,141 +415,6 @@ editForm.addEventListener("submit", async (event) => {
   }
 });
 
-// ---------- missing experiences (gaps) ----------
-
-function getCurrentToolCategoryNames() {
-  return Array.from(toolsContainerEl.querySelectorAll(":scope > .tool-category"))
-    .map((block) => readField(block, "category-name"))
-    .filter(Boolean);
-}
-
-function findToolCategoryBlock(name) {
-  return Array.from(toolsContainerEl.querySelectorAll(":scope > .tool-category")).find(
-    (block) => readField(block, "category-name") === name
-  );
-}
-
-function renderGapsList(gaps) {
-  gapsListEl.innerHTML = "";
-  for (const gap of gaps) {
-    const row = document.createElement("div");
-    row.className = "gap-row entry-card";
-
-    const text = document.createElement("p");
-    text.className = "gap-text";
-    text.textContent = gap.source ? `${gap.text} (from "${gap.source}")` : gap.text;
-    row.appendChild(text);
-
-    const haveLabel = document.createElement("p");
-    haveLabel.className = "hint";
-    haveLabel.textContent = "I have this — describe it in your own words:";
-    row.appendChild(haveLabel);
-
-    const editInput = document.createElement("input");
-    editInput.type = "text";
-    editInput.className = "gap-edit-input";
-    editInput.value = gap.text;
-    row.appendChild(editInput);
-
-    const controls = document.createElement("div");
-    controls.className = "gap-controls";
-
-    const select = document.createElement("select");
-    select.className = "gap-category-select";
-    for (const cat of getCurrentToolCategoryNames()) {
-      const opt = document.createElement("option");
-      opt.value = cat;
-      opt.textContent = cat;
-      select.appendChild(opt);
-    }
-    const newOpt = document.createElement("option");
-    newOpt.value = "__new__";
-    newOpt.textContent = "+ New category…";
-    select.appendChild(newOpt);
-    controls.appendChild(select);
-
-    const addBtn = document.createElement("button");
-    addBtn.type = "button";
-    addBtn.className = "add-entry-btn";
-    addBtn.textContent = "I have it — add to CV";
-    addBtn.addEventListener("click", () => addGapToCv(gap, editInput, select, row));
-    controls.appendChild(addBtn);
-
-    const learnBtn = document.createElement("button");
-    learnBtn.type = "button";
-    learnBtn.className = "remove-entry";
-    learnBtn.textContent = "Don't have it — track to learn";
-    learnBtn.addEventListener("click", () => sendGapToLearning(gap, row));
-    controls.appendChild(learnBtn);
-
-    row.appendChild(controls);
-    gapsListEl.appendChild(row);
-  }
-  gapsSectionEl.hidden = gaps.length === 0;
-}
-
-async function addGapToCv(gap, editInput, select, row) {
-  const text = editInput.value.trim();
-  if (!text) {
-    editInput.focus();
-    return;
-  }
-
-  let category = select.value;
-  if (category === "__new__" || !category) {
-    category = window.prompt("New tool category name:", "");
-    if (!category) return;
-  }
-
-  let targetBlock = findToolCategoryBlock(category);
-  if (!targetBlock) {
-    targetBlock = makeToolCategoryBlock(category, []);
-    toolsContainerEl.appendChild(targetBlock);
-  }
-  targetBlock.querySelector(".tool-items-list").appendChild(makeToolItem({ name: text, level: null }));
-
-  await removeGap(gap.id, row);
-  saveStatusEl.textContent = 'Added to Tools below — click "Save changes" to keep it.';
-}
-
-async function sendGapToLearning(gap, row) {
-  try {
-    await authFetch(`${API_BASE}/api/cv/${currentCvId}/learning`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: gap.text }),
-    });
-  } catch {
-    // best-effort — still remove the gap from the pending list below
-  }
-  await removeGap(gap.id, row);
-  saveStatusEl.textContent = 'Added to your "Skills to Learn" list.';
-}
-
-async function removeGap(gapId, row) {
-  try {
-    await authFetch(`${API_BASE}/api/cv/${currentCvId}/gaps/${gapId}`, { method: "DELETE" });
-  } catch {
-    // best-effort — remove from view regardless so the UI doesn't get stuck
-  }
-  row.remove();
-  if (!gapsListEl.children.length) gapsSectionEl.hidden = true;
-}
-
-async function loadGaps() {
-  if (!currentCvId) return;
-  try {
-    const response = await authFetch(`${API_BASE}/api/cv/${currentCvId}/gaps`);
-    if (!response.ok) return;
-    const data = await response.json();
-    renderGapsList(data.gaps);
-  } catch {
-    // gaps are a nice-to-have overlay — a failed fetch shouldn't block the rest of the page
-  }
-}
-
-refreshGapsBtn.addEventListener("click", loadGaps);
-
 // ---------- resume the last-used CV across page visits ----------
 
 (async function resumeLastCv() {
@@ -571,7 +432,6 @@ refreshGapsBtn.addEventListener("click", loadGaps);
     loadProfileIntoForm(record.filename, record.profile);
     exportJsonLink.href = `${API_BASE}/api/cv/${currentCvId}/export.json`;
     exportJsonLink.hidden = false;
-    loadGaps();
   } catch {
     // offline or backend unreachable — just leave the page in its default empty state
   }

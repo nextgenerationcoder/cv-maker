@@ -40,8 +40,10 @@ def score_jobs_endpoint(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
+    ignored = [item["text"] for item in cv_store.list_ignored(body.cv_id)]
+
     try:
-        scores = score_jobs(provider, cv_record["profile"], body.jobs)
+        scores = score_jobs(provider, cv_record["profile"], body.jobs, ignored)
     except Exception:
         logger.exception("Job scoring failed for cv_id=%r", body.cv_id)
         raise HTTPException(

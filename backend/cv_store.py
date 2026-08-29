@@ -59,6 +59,18 @@ def _connect() -> sqlite3.Connection:
         )
         """
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS cv_ignored (
+            id TEXT PRIMARY KEY,
+            cv_id TEXT NOT NULL,
+            text TEXT NOT NULL,
+            text_key TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            UNIQUE(cv_id, text_key)
+        )
+        """
+    )
     return conn
 
 
@@ -250,6 +262,51 @@ def delete_learning_item(cv_id: str, item_id: str) -> bool:
     conn = _connect()
     try:
         cur = conn.execute("DELETE FROM cv_learning WHERE id = ? AND cv_id = ?", (item_id, cv_id))
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def add_ignored(cv_id: str, text: str) -> dict:
+    """Mark a requirement as not relevant to this candidate, so future AI
+    scoring/matching for this CV stops flagging it. Idempotent — marking
+    the same text (case/space-insensitive) twice is a no-op, not a dupe."""
+    now = datetime.now(timezone.utc).isoformat()
+    text_key = " ".join(text.lower().split())
+    conn = _connect()
+    try:
+        conn.execute(
+            "INSERT INTO cv_ignored (id, cv_id, text, text_key, created_at) VALUES (?, ?, ?, ?, ?) "
+            "ON CONFLICT(cv_id, text_key) DO NOTHING",
+            (str(uuid.uuid4()), cv_id, text, text_key, now),
+        )
+        conn.commit()
+        row = conn.execute(
+            "SELECT id, cv_id, text, created_at FROM cv_ignored WHERE cv_id = ? AND text_key = ?",
+            (cv_id, text_key),
+        ).fetchone()
+    finally:
+        conn.close()
+    return {"id": row[0], "cv_id": row[1], "text": row[2], "created_at": row[3]}
+
+
+def list_ignored(cv_id: str) -> list[dict]:
+    conn = _connect()
+    try:
+        rows = conn.execute(
+            "SELECT id, cv_id, text, created_at FROM cv_ignored WHERE cv_id = ? ORDER BY created_at DESC",
+            (cv_id,),
+        ).fetchall()
+    finally:
+        conn.close()
+    return [{"id": r[0], "cv_id": r[1], "text": r[2], "created_at": r[3]} for r in rows]
+
+
+def delete_ignored(cv_id: str, item_id: str) -> bool:
+    conn = _connect()
+    try:
+        cur = conn.execute("DELETE FROM cv_ignored WHERE id = ? AND cv_id = ?", (item_id, cv_id))
         conn.commit()
         return cur.rowcount > 0
     finally:

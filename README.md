@@ -190,40 +190,43 @@ app needs an LLM key; job search and CV upload/edit work fine without it.
   back to the `id` you sent so the frontend can match by array index
   rather than relying on response order.
 
-## Missing experiences (gap review)
+## Missing requirements — resolve inline, per item
 
-Each `missing_requirements` item from a job check gets a checkbox next to
-it. Select the ones that seem worth resolving (the model doesn't know
-whether you actually have them — it's only judging from what's already in
-your CV) and click "Add selected to CV gaps" to save them, tagged with
-which job surfaced them. They don't touch your CV automatically.
+Each `missing_requirements` item from a job check (Job Search's "Check
+match?" and the tailoring job-detail page's resume match both surface
+these) gets three actions right where it's shown — no separate review
+page, no batch step:
 
-On the Upload CV page, a "Missing experiences" section lists everything
-pending. For each one there are exactly two paths:
+1. **"I have this"** — reveals an editable text box, pre-filled with the
+   raw flagged phrase, so you describe it in your own words (real detail
+   — dates, scale, tools used) before picking a tool category and adding
+   it straight to the CV's `tools`. The raw AI-generated phrase is never
+   saved verbatim; what you actually type is what gets added. This calls
+   `GET`/`PUT /api/cv/{id}` directly (fetch the profile, append the tool,
+   save it back) — it is a real, immediate CV edit, not a draft.
+2. **"Track to learn"** — sends it straight to the
+   [Skills to Learn](#skills-to-learn) list (`POST /api/cv/{id}/learning`)
+   instead of the CV.
+3. **"Not relevant to me"** — tells the app to stop flagging this
+   requirement (or a close variant of it) for this CV in future AI job
+   scoring and resume matching, rather than re-surfacing it every time.
+   Stored per-CV and threaded into both the job-scoring prompt
+   (`backend/job_scoring.py`) and the tailoring resume-match prompt
+   (`backend/tailoring_llm_steps.py`), with a case-insensitive substring
+   match as a server-side safety net in case a model doesn't fully honor
+   the instruction.
 
-1. **"I have it — add to CV"**: an editable text box, pre-filled with the
-   raw gap phrase, lets you describe it in your own words (with real
-   detail — dates, scale, tools used) before picking a tool category (or
-   typing a new one) and adding it. The raw model-generated phrase is
-   never inserted verbatim; what you actually write is what gets added.
-2. **"Don't have it — track to learn"**: moves the item to the separate
-   [Skills to Learn](#skills-to-learn) page instead of your CV.
-
-Either way it only updates the in-page form — like any other edit, it's
-not persisted until you hit "Save changes". The CV you last imported or
-saved is remembered across page visits (`localStorage`), so the Job
-Search and Upload CV pages stay in sync on the same CV without
-re-uploading.
+Whichever action you pick, the item disappears from the list immediately
+— there's no separate "save" step for this part.
 
 ### API
 
-- `POST /api/cv/{id}/gaps` — JSON body `{items: string[], source?: string}`.
-  Returns `{gaps: [{id, cv_id, text, source, created_at}, ...]}`. 404 if
-  the CV doesn't exist; 400 if `items` is empty after trimming blanks.
-- `GET /api/cv/{id}/gaps` — list pending gaps for a CV.
-- `DELETE /api/cv/{id}/gaps/{gap_id}` — remove a gap (used once it's been
-  resolved via either path above, to clear it from the pending list). 404
-  if it doesn't exist.
+- `POST /api/cv/{id}/ignored` — JSON body `{text: string}`. Idempotent —
+  marking the same text twice (case/whitespace-insensitive) is a no-op,
+  not a duplicate row. Returns `{id, cv_id, text, created_at}`.
+- `GET /api/cv/{id}/ignored` — list a CV's ignored requirements.
+- `DELETE /api/cv/{id}/ignored/{item_id}` — un-ignore one. 404 if it
+  doesn't exist.
 
 ## Skills to Learn
 

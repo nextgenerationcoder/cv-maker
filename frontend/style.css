@@ -5,6 +5,15 @@ body {
   padding: 0 1rem;
 }
 
+/* The hidden attribute must always win, no matter what display value a
+   more specific selector sets on the same element (flex containers,
+   form { display: flex } etc. all silently defeat plain [hidden]
+   otherwise — see the .cv-edit-form / .score-bar / .missing-actions
+   history in this file). */
+[hidden] {
+  display: none !important;
+}
+
 .container form {
   display: flex;
   gap: 0.5rem;
@@ -232,19 +241,68 @@ body {
   font-size: 0.85rem;
 }
 
-.missing-list li {
-  margin-bottom: 0.2rem;
+.missing-item {
+  padding: 0.4rem 0;
+  border-bottom: 1px solid #fde2e2;
 }
 
-.save-gaps-btn {
-  font-size: 0.8rem;
-  padding: 0.3rem 0.6rem;
+.missing-item:last-child {
+  border-bottom: none;
 }
 
-.gaps-status {
+.missing-text {
+  display: block;
+  margin-bottom: 0.3rem;
+}
+
+.missing-actions:not([hidden]) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.missing-have-btn,
+.missing-learn-btn,
+.missing-ignore-btn,
+.missing-have-save-btn {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+}
+
+.missing-have-form:not([hidden]) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+
+.missing-have-input {
+  flex: 2;
+  min-width: 10rem;
   font-size: 0.8rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.missing-have-category {
+  flex: 1;
+  min-width: 6rem;
+  font-size: 0.8rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.missing-item-status {
+  display: block;
+  font-size: 0.75rem;
   color: #666;
-  margin-left: 0.5rem;
+  margin-top: 0.2rem;
 }
 
 .cv-edit-form h2 {

@@ -14,8 +14,6 @@ const matchStrongEl = document.getElementById("match-strong");
 const matchPartialEl = document.getElementById("match-partial");
 const matchMissingEl = document.getElementById("match-missing");
 const matchAtsEl = document.getElementById("match-ats");
-const addMissingBtn = document.getElementById("add-missing-to-gaps-btn");
-const gapsHintEl = document.getElementById("gaps-hint");
 
 const evidenceSectionEl = document.getElementById("evidence-section");
 const evidenceListEl = document.getElementById("evidence-list");
@@ -113,15 +111,11 @@ function renderMatch(m) {
 
   fillList(matchStrongEl, m.strongMatches, "Nothing stands out yet.");
   fillList(matchPartialEl, m.partialMatches, "None.");
-  fillList(matchMissingEl, m.missingRequirements, "Nothing missing.");
+  renderMissingList(m.missingRequirements);
 
   matchAtsEl.textContent = m.atsKeywordsCovered.length
     ? `ATS keywords covered: ${m.atsKeywordsCovered.join(", ")}`
     : "No ATS keywords identified from the job posting.";
-
-  if (m.missingRequirements.length) {
-    addMissingBtn.hidden = false;
-  }
 
   renderEvidence(m.selection);
 }
@@ -149,22 +143,136 @@ function fillList(ul, items, emptyText) {
   }
 }
 
-addMissingBtn.addEventListener("click", async () => {
-  if (!job || !match) return;
-  addMissingBtn.disabled = true;
+// ---------- missing requirements: per-item "I have this / track to learn / not relevant" ----------
+
+function renderMissingList(items) {
+  matchMissingEl.innerHTML = "";
+  if (!items.length) {
+    const li = document.createElement("li");
+    li.className = "hint";
+    li.textContent = "Nothing missing.";
+    matchMissingEl.appendChild(li);
+    return;
+  }
+  for (const text of items) {
+    const li = document.createElement("li");
+    li.className = "missing-item";
+    li.dataset.text = text;
+    li.innerHTML = `
+      <span class="missing-text">${escapeHtml(text)}</span>
+      <div class="missing-actions">
+        <button type="button" class="missing-have-btn">I have this</button>
+        <button type="button" class="missing-learn-btn">Track to learn</button>
+        <button type="button" class="missing-ignore-btn">Not relevant to me</button>
+      </div>
+      <div class="missing-have-form" hidden>
+        <input type="text" class="missing-have-input" value="${escapeHtml(text)}" />
+        <input type="text" class="missing-have-category" placeholder="Tool category (e.g. tools)" value="tools" />
+        <button type="button" class="missing-have-save-btn">Add to CV</button>
+      </div>
+      <span class="missing-item-status"></span>
+    `;
+    matchMissingEl.appendChild(li);
+  }
+}
+
+function removeMissingItem(li) {
+  li.remove();
+  if (!matchMissingEl.children.length) {
+    const li2 = document.createElement("li");
+    li2.className = "hint";
+    li2.textContent = "Nothing missing.";
+    matchMissingEl.appendChild(li2);
+  }
+}
+
+async function addMissingItemToCv(li) {
+  const statusEl = li.querySelector(".missing-item-status");
+  const text = li.querySelector(".missing-have-input").value.trim();
+  const category = li.querySelector(".missing-have-category").value.trim() || "tools";
+  if (!text || !job) return;
+
+  const saveBtn = li.querySelector(".missing-have-save-btn");
+  saveBtn.disabled = true;
+  statusEl.textContent = "Saving…";
+
   try {
-    const response = await authFetch(`${API_BASE}/api/cv/${job.cv_id}/gaps`, {
+    const cvResponse = await authFetch(`${API_BASE}/api/cv/${job.cv_id}`);
+    if (!cvResponse.ok) throw new Error(`Request failed with ${cvResponse.status}`);
+    const record = await cvResponse.json();
+    const profile = record.profile;
+    profile.tools = profile.tools || {};
+    profile.tools[category] = profile.tools[category] || [];
+    profile.tools[category].push({ name: text, level: null });
+
+    const putResponse = await authFetch(`${API_BASE}/api/cv/${job.cv_id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profile, filename: record.filename }),
+    });
+    if (!putResponse.ok) throw new Error(`Request failed with ${putResponse.status}`);
+
+    removeMissingItem(li);
+  } catch (err) {
+    saveBtn.disabled = false;
+    statusEl.textContent = `Error: ${err.message}`;
+  }
+}
+
+async function trackMissingItemToLearn(li) {
+  if (!job) return;
+  const statusEl = li.querySelector(".missing-item-status");
+  try {
+    const response = await authFetch(`${API_BASE}/api/cv/${job.cv_id}/learning`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items: match.missingRequirements, source: job.title }),
+      body: JSON.stringify({ text: li.dataset.text }),
     });
     if (!response.ok) throw new Error(`Request failed with ${response.status}`);
-    addMissingBtn.hidden = true;
-    gapsHintEl.hidden = false;
+    removeMissingItem(li);
   } catch (err) {
-    addMissingBtn.disabled = false;
-    gapsHintEl.hidden = false;
-    gapsHintEl.textContent = `Error: ${err.message}`;
+    statusEl.textContent = `Error: ${err.message}`;
+  }
+}
+
+async function markMissingItemIgnored(li) {
+  if (!job) return;
+  const statusEl = li.querySelector(".missing-item-status");
+  try {
+    const response = await authFetch(`${API_BASE}/api/cv/${job.cv_id}/ignored`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: li.dataset.text }),
+    });
+    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+    removeMissingItem(li);
+  } catch (err) {
+    statusEl.textContent = `Error: ${err.message}`;
+  }
+}
+
+matchMissingEl.addEventListener("click", async (event) => {
+  const haveBtn = event.target.closest(".missing-have-btn");
+  if (haveBtn) {
+    const li = haveBtn.closest(".missing-item");
+    li.querySelector(".missing-have-form").hidden = false;
+    haveBtn.closest(".missing-actions").hidden = true;
+    return;
+  }
+  const haveSaveBtn = event.target.closest(".missing-have-save-btn");
+  if (haveSaveBtn) {
+    await addMissingItemToCv(haveSaveBtn.closest(".missing-item"));
+    return;
+  }
+  const learnBtn = event.target.closest(".missing-learn-btn");
+  if (learnBtn) {
+    await trackMissingItemToLearn(learnBtn.closest(".missing-item"));
+    return;
+  }
+  const ignoreBtn = event.target.closest(".missing-ignore-btn");
+  if (ignoreBtn) {
+    await markMissingItemIgnored(ignoreBtn.closest(".missing-item"));
+    return;
   }
 });
 

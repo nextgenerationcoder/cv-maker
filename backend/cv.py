@@ -32,6 +32,10 @@ class AddLearningItemRequest(BaseModel):
     text: str
 
 
+class AddIgnoredRequest(BaseModel):
+    text: str
+
+
 @router.get("/template.json")
 def download_template():
     return PlainTextResponse(
@@ -153,6 +157,34 @@ def delete_learning_item(
         raise HTTPException(status_code=404, detail="CV not found.")
     if not cv_store.delete_learning_item(cv_id, item_id):
         raise HTTPException(status_code=404, detail="Learning item not found.")
+    return {"status": "deleted"}
+
+
+@router.post("/{cv_id}/ignored")
+def add_ignored(
+    cv_id: str, body: AddIgnoredRequest, current_user: dict = Depends(get_current_user)
+):
+    if cv_store.fetch_cv(cv_id, current_user["id"]) is None:
+        raise HTTPException(status_code=404, detail="CV not found.")
+    text = body.text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Text is required.")
+    return cv_store.add_ignored(cv_id, text)
+
+
+@router.get("/{cv_id}/ignored")
+def list_ignored(cv_id: str, current_user: dict = Depends(get_current_user)):
+    if cv_store.fetch_cv(cv_id, current_user["id"]) is None:
+        raise HTTPException(status_code=404, detail="CV not found.")
+    return {"items": cv_store.list_ignored(cv_id)}
+
+
+@router.delete("/{cv_id}/ignored/{item_id}")
+def delete_ignored(cv_id: str, item_id: str, current_user: dict = Depends(get_current_user)):
+    if cv_store.fetch_cv(cv_id, current_user["id"]) is None:
+        raise HTTPException(status_code=404, detail="CV not found.")
+    if not cv_store.delete_ignored(cv_id, item_id):
+        raise HTTPException(status_code=404, detail="Ignored item not found.")
     return {"status": "deleted"}
 
 
