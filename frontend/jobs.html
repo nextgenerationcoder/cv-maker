@@ -19,21 +19,29 @@
     <h1>Tailored CVs</h1>
     <p class="hint">
       Jobs you've saved for tailoring. Open one to see how your resume
-      matches, then generate a CV built specifically for it.
+      matches, then generate a CV built specifically for it. This also
+      works for Indeed, Glassdoor, or any job board that Job Search can't
+      scrape directly — paste the listing's URL or its text below.
     </p>
 
-    <details class="add-job-details">
-      <summary>+ Add a job manually</summary>
+    <details class="add-job-details" open>
+      <summary>+ Add a job from Indeed / Glassdoor / any URL or pasted text</summary>
       <form id="add-job-form" class="cv-edit-form">
         <label class="field"><span>CV to use</span>
           <select id="add-job-cv-select"></select>
         </label>
+        <label class="field"><span>Job URL (optional)</span>
+          <div class="url-fetch-row">
+            <input type="url" id="add-job-url" placeholder="https://www.indeed.com/viewjob?jk=..." />
+            <button type="button" id="fetch-job-url-btn">Fetch details</button>
+          </div>
+        </label>
+        <p id="fetch-job-status" class="hint"></p>
         <label class="field"><span>Job title</span><input type="text" id="add-job-title" required /></label>
         <label class="field"><span>Company</span><input type="text" id="add-job-company" /></label>
         <label class="field"><span>Location</span><input type="text" id="add-job-location" /></label>
-        <label class="field"><span>Job URL</span><input type="url" id="add-job-url" /></label>
         <label class="field"><span>Job description / posting text</span>
-          <textarea id="add-job-description" rows="6"></textarea>
+          <textarea id="add-job-description" rows="6" placeholder="Paste it here if 'Fetch details' can't reach the page"></textarea>
         </label>
         <button type="submit">Save &amp; analyze</button>
       </form>

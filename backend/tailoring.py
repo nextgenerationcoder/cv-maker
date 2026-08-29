@@ -8,6 +8,7 @@ from typing import Optional
 import cv_store
 import tailoring_store
 from auth import get_current_user
+from job_parse import parse_job_url
 from llm_provider import LLMProvider, get_provider_for_user
 from tailoring_evidence import build_evidence_pool
 from tailoring_models import JobAnalysis, ResumeMatchResult, TailoredCV
@@ -26,6 +27,10 @@ class CreateJobRequest(BaseModel):
     description: Optional[str] = None
     job_url: Optional[str] = None
     job_type: Optional[str] = None
+
+
+class ParseJobUrlRequest(BaseModel):
+    url: str
 
 
 class UpdateTailoredCvRequest(BaseModel):
@@ -51,6 +56,16 @@ def _get_provider(user_id: str) -> LLMProvider:
         return get_provider_for_user(user_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.post("/parse-job-url")
+def parse_job_url_endpoint(body: ParseJobUrlRequest, current_user: dict = Depends(get_current_user)):
+    if not body.url.strip().lower().startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="That doesn't look like a valid URL.")
+    try:
+        return parse_job_url(body.url.strip())
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
 
 
 @router.post("/jobs")

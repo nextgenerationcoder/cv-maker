@@ -595,6 +595,15 @@ body {
   margin-top: 0.75rem;
 }
 
+.url-fetch-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.url-fetch-row input {
+  flex: 1;
+}
+
 .job-actions {
   display: flex;
   align-items: center;

@@ -5,6 +5,8 @@ const jobsStatusEl = document.getElementById("jobs-status");
 const addJobForm = document.getElementById("add-job-form");
 const addJobCvSelect = document.getElementById("add-job-cv-select");
 const addJobStatusEl = document.getElementById("add-job-status");
+const fetchJobUrlBtn = document.getElementById("fetch-job-url-btn");
+const fetchJobStatusEl = document.getElementById("fetch-job-status");
 
 async function loadCvOptions() {
   try {
@@ -122,6 +124,37 @@ addJobForm.addEventListener("submit", async (event) => {
     window.location.href = `job-detail.html?job_id=${encodeURIComponent(job.id)}`;
   } catch (err) {
     addJobStatusEl.textContent = `Error: ${err.message}`;
+  }
+});
+
+fetchJobUrlBtn.addEventListener("click", async () => {
+  const url = document.getElementById("add-job-url").value.trim();
+  if (!url) {
+    fetchJobStatusEl.textContent = "Paste a job URL first.";
+    return;
+  }
+  fetchJobUrlBtn.disabled = true;
+  fetchJobStatusEl.textContent = "Fetching…";
+  try {
+    const response = await authFetch(`${API_BASE}/api/tailoring/parse-job-url`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      throw new Error(errorBody.detail || `Request failed with ${response.status}`);
+    }
+    const data = await response.json();
+    if (data.title) document.getElementById("add-job-title").value = data.title;
+    if (data.company) document.getElementById("add-job-company").value = data.company;
+    if (data.location) document.getElementById("add-job-location").value = data.location;
+    if (data.description) document.getElementById("add-job-description").value = data.description;
+    fetchJobStatusEl.textContent = "Filled in below — review and edit before saving.";
+  } catch (err) {
+    fetchJobStatusEl.textContent = `${err.message}`;
+  } finally {
+    fetchJobUrlBtn.disabled = false;
   }
 });
 

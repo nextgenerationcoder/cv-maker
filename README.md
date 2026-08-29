@@ -331,15 +331,19 @@ existing items keep their ID unless their own text is edited.
 
 ### Flow
 
-1. **Job Search** page: click "Tailor CV for this job" on a result (or add
-   one manually on the **Tailored CVs** page) — this saves the job and
-   runs job analysis.
+1. **Job Search** page: click "Tailor CV for this job" on a result — this
+   saves the job and runs job analysis. For boards Job Search can't scrape
+   (Indeed/Glassdoor often block search requests from a VPS IP — see
+   below), use the **Tailored CVs** page instead: paste the listing's URL
+   ("Fetch details" auto-fills title/company/location/description from
+   the page's structured job data — works on most boards and ATSs, not
+   just Indeed/Glassdoor) or just paste the text by hand.
 2. **Job detail** page: resume match runs automatically (score, strong/
    partial/missing requirements, ATS keyword coverage), with an
    expandable review of exactly which resume items were included/maybe/
-   excluded and why. Missing requirements can be sent to the CV page's
-   existing gap-review flow ("do you have real experience with this?") —
-   tailoring never asks you to invent something to satisfy a job.
+   excluded and why. Each missing requirement has three actions right
+   there (see [Missing requirements](#missing-requirements--resolve-inline-per-item))
+   — tailoring never asks you to invent something to satisfy a job.
 3. Click **Generate Tailored CV** to run the full pipeline. The result is
    a versioned, editable document-style CV with a provenance note under
    each bullet ("Based on N experiences"), a sidebar with match/
@@ -349,6 +353,18 @@ existing items keep their ID unless their own text is edited.
 
 ### API (`/api/tailoring/*`, all require auth, all scoped to the caller)
 
+- `POST /parse-job-url` — `{url}` → best-effort scrape of a single job
+  page (not a board search — a specific listing's URL), for boards that
+  block JobSpy's search scraping. Looks for a `JobPosting` JSON-LD block
+  (used by Indeed, Glassdoor, LinkedIn, Greenhouse, Lever, Workday, and
+  most other boards/ATSs for SEO) first, falls back to Open Graph meta
+  tags, then raw page text. Returns `{title, company, location,
+  description, job_url}` — any field can be `null`. 422 with a clear
+  message if the page couldn't be fetched or nothing was found (the page
+  blocks bots, uses heavy client-side rendering, etc.) — paste the details
+  by hand in that case. `frontend/jobs.js`'s "Fetch details" button calls
+  this to prefill the manual add-job form, which stays fully editable
+  either way.
 - `POST /jobs` — `{cv_id, title, company?, location?, description?,
   job_url?, job_type?}` → saves the job and runs job analysis. Returns
   the job with `job_analysis` populated.
