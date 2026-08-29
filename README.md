@@ -27,6 +27,20 @@ fine for local testing only.
   email/password. Same response shape as signup.
 - `GET /api/auth/me` — returns `{id, email}` for the bearer token's
   owner. 401 if the token's missing/expired/invalid.
+- `POST /api/auth/forgot-password` — JSON body `{email}`. There's no
+  email sending set up for this app, so this can't send a reset link —
+  passwords are one-way bcrypt hashes anyway, so the *original* password
+  can never be recovered by anyone, including the server. Instead this
+  generates a new random 12-character password, saves it, and returns it
+  directly: `{email, temporary_password}`. 404 if no account has that
+  email. Note this means anyone who knows an account's email can reset
+  it — an accepted trade-off for a small self-hosted app with no email
+  infrastructure, not a general-purpose flow. `frontend/forgot-password.html`
+  shows the new password once and links to the login page.
+- `POST /api/auth/change-password` — requires auth. JSON body
+  `{current_password, new_password}` (new password min 8 characters).
+  401 if `current_password` is wrong, 422 if the new one's too short.
+  Used from Settings to replace a temporary password with a real one.
 
 Every other endpoint below now requires the same `Authorization: Bearer
 <token>` header, and CVs, gaps, and learning items are all scoped to the

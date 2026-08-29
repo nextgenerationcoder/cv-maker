@@ -66,3 +66,37 @@ removeKeyBtn.addEventListener("click", async () => {
 });
 
 loadSettings();
+
+// ---------- change password ----------
+
+const passwordForm = document.getElementById("password-form");
+const currentPasswordInput = document.getElementById("current-password-input");
+const newPasswordInput = document.getElementById("new-password-input");
+const passwordStatusEl = document.getElementById("password-status");
+
+passwordForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  passwordStatusEl.textContent = "Changing…";
+
+  try {
+    const response = await authFetch(`${API_BASE}/api/auth/change-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        current_password: currentPasswordInput.value,
+        new_password: newPasswordInput.value,
+      }),
+    });
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      const detail = Array.isArray(errorBody.detail)
+        ? errorBody.detail.map((d) => d.msg).join(" ")
+        : errorBody.detail;
+      throw new Error(detail || `Request failed with ${response.status}`);
+    }
+    passwordForm.reset();
+    passwordStatusEl.textContent = "Changed.";
+  } catch (err) {
+    passwordStatusEl.textContent = `Error: ${err.message}`;
+  }
+});

@@ -1,5 +1,7 @@
 import os
 import re
+import secrets
+import string
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
@@ -43,6 +45,27 @@ class SignupRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters.")
+        return v
+
+
+def _generate_temp_password() -> str:
+    alphabet = string.ascii_letters + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(12))
 
 
 def hash_password(password: str) -> str:
@@ -101,3 +124,28 @@ def login(body: LoginRequest):
 @router.get("/me")
 def me(current_user: dict = Depends(get_current_user)):
     return {"id": current_user["id"], "email": current_user["email"]}
+
+
+@router.post("/forgot-password")
+def forgot_password(body: ForgotPasswordRequest):
+    """No email sending is set up for this deployment, so this can't send a
+    reset link — instead it generates a new temporary password and returns
+    it directly. Anyone who knows an account's email can reset it this way;
+    that's an accepted trade-off for a small self-hosted app with no email
+    infrastructure, not a general-purpose reset flow. Change the password
+    afterward from Settings."""
+    user = user_store.get_user_by_email(body.email.strip().lower())
+    if user is None:
+        raise HTTPException(status_code=404, detail="No account with that email.")
+    temp_password = _generate_temp_password()
+    user_store.update_password(user["id"], hash_password(temp_password))
+    return {"email": user["email"], "temporary_password": temp_password}
+
+
+@router.post("/change-password")
+def change_password(body: ChangePasswordRequest, current_user: dict = Depends(get_current_user)):
+    user = user_store.get_user_by_email(current_user["email"])
+    if user is None or not verify_password(body.current_password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Current password is incorrect.")
+    user_store.update_password(current_user["id"], hash_password(body.new_password))
+    return {"status": "changed"}

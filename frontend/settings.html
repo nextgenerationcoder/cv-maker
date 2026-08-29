@@ -53,6 +53,23 @@
       a saved key, DeepSeek can't be used and Anthropic falls back to
       this deployment's own key (if the administrator set one).
     </p>
+
+    <h2>Change password</h2>
+    <form id="password-form" class="cv-edit-form">
+      <label class="field">
+        <span>Current password</span>
+        <input type="password" id="current-password-input" required autocomplete="current-password" />
+      </label>
+      <label class="field">
+        <span>New password</span>
+        <input type="password" id="new-password-input" required autocomplete="new-password" minlength="8" />
+      </label>
+      <p class="hint">At least 8 characters.</p>
+      <div class="save-bar">
+        <button type="submit">Change password</button>
+        <span id="password-status"></span>
+      </div>
+    </form>
   </main>
   <script src="auth.js"></script>
   <script>if (!requireAuth()) document.querySelector("main").hidden = true;</script>

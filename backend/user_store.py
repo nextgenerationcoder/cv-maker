@@ -67,3 +67,15 @@ def get_user_by_id(user_id: str) -> Optional[dict]:
     if row is None:
         return None
     return {"id": row[0], "email": row[1], "created_at": row[2]}
+
+
+def update_password(user_id: str, password_hash: str) -> bool:
+    conn = _connect()
+    try:
+        cur = conn.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?", (password_hash, user_id)
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()

@@ -126,6 +126,22 @@ body {
   margin-top: 0.25rem;
 }
 
+.temp-password-box {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #16a34a;
+  border-radius: 6px;
+  background: #f0fdf4;
+}
+
+.temp-password-value {
+  font-family: ui-monospace, monospace;
+  font-size: 1.1rem;
+  font-weight: 600;
+  user-select: all;
+  margin: 0.25rem 0;
+}
+
 .hint {
   color: #666;
   font-size: 0.9rem;
