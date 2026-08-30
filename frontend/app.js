@@ -8,6 +8,10 @@ const urlStatusEl = document.getElementById("url-status");
 const scoreBarEl = document.getElementById("score-bar");
 const scoreCvSelectEl = document.getElementById("score-cv-select");
 const scoreHintEl = document.getElementById("score-hint");
+const addJobForm = document.getElementById("add-job-form");
+const fetchJobUrlBtn = document.getElementById("fetch-job-url-btn");
+const fetchJobStatusEl = document.getElementById("fetch-job-status");
+const fetchWrongBtn = document.getElementById("fetch-wrong-btn");
 
 let lastJobs = [];
 let lastScoresByIndex = {};
@@ -473,3 +477,78 @@ function escapeHtml(str) {
 function escapeAttr(str) {
   return escapeHtml(str).replace(/"/g, "&quot;");
 }
+
+// ---------- manually add a job (for boards search can't scrape) ----------
+
+fetchJobUrlBtn.addEventListener("click", async () => {
+  const url = document.getElementById("add-job-url").value.trim();
+  if (!url) {
+    fetchJobStatusEl.textContent = "Paste a job URL first.";
+    return;
+  }
+  fetchJobUrlBtn.disabled = true;
+  fetchJobStatusEl.textContent = "Fetching…";
+  try {
+    const response = await authFetch(`${API_BASE}/api/tailoring/parse-job-url`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      throw new Error(errorBody.detail || `Request failed with ${response.status}`);
+    }
+    const data = await response.json();
+    if (data.title) document.getElementById("add-job-title").value = data.title;
+    if (data.company) document.getElementById("add-job-company").value = data.company;
+    if (data.location) document.getElementById("add-job-location").value = data.location;
+    if (data.description) document.getElementById("add-job-description").value = data.description;
+    fetchJobStatusEl.textContent = "Filled in below — review and edit before adding.";
+    fetchWrongBtn.hidden = false;
+  } catch (err) {
+    fetchJobStatusEl.textContent = `${err.message}`;
+  } finally {
+    fetchJobUrlBtn.disabled = false;
+  }
+});
+
+fetchWrongBtn.addEventListener("click", () => {
+  document.getElementById("add-job-title").value = "";
+  document.getElementById("add-job-company").value = "";
+  document.getElementById("add-job-location").value = "";
+  const descriptionEl = document.getElementById("add-job-description");
+  descriptionEl.value = "";
+  fetchJobStatusEl.textContent = "Cleared — paste the title and description in yourself below.";
+  fetchWrongBtn.hidden = true;
+  descriptionEl.focus();
+});
+
+addJobForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const title = document.getElementById("add-job-title").value.trim();
+  if (!title) return;
+
+  const job = {
+    title,
+    company: document.getElementById("add-job-company").value.trim() || null,
+    location: document.getElementById("add-job-location").value.trim() || null,
+    description: document.getElementById("add-job-description").value.trim() || null,
+    job_url: document.getElementById("add-job-url").value.trim() || null,
+    job_type: null,
+    date_posted: null,
+  };
+
+  const index = lastJobs.length;
+  lastJobs.push(job);
+  scoreBarEl.hidden = !hasSavedCv;
+  scoreHintEl.hidden = !hasSavedCv;
+  renderResults(lastJobs);
+  statusEl.textContent = `${lastJobs.length} job(s) — added 1 manually.`;
+
+  addJobForm.reset();
+  fetchWrongBtn.hidden = true;
+  fetchJobStatusEl.textContent = "";
+
+  const addedLi = resultsEl.children[index];
+  if (addedLi) addedLi.scrollIntoView({ behavior: "smooth", block: "center" });
+});

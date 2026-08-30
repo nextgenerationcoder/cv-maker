@@ -17,12 +17,6 @@
       <span id="account-bar" class="account-bar"></span>
     </nav>
     <h1>Job Search</h1>
-    <p class="hint">
-      Some boards (Indeed, Glassdoor) often block automated search from
-      here. If a search comes up empty, paste that job's URL or text
-      directly on the <a href="jobs.html">Tailored CVs</a> page instead —
-      it still gets the full match check.
-    </p>
 
     <form id="url-form">
       <input
@@ -103,6 +97,27 @@
       by this.
     </p>
     <p id="status"></p>
+
+    <details class="add-job-details">
+      <summary>+ Search didn't find it? Add a job from Indeed / Glassdoor / any URL or pasted text</summary>
+      <form id="add-job-form" class="cv-edit-form">
+        <label class="field"><span>Job URL (optional)</span>
+          <div class="url-fetch-row">
+            <input type="url" id="add-job-url" placeholder="https://www.indeed.com/viewjob?jk=..." />
+            <button type="button" id="fetch-job-url-btn">Fetch details</button>
+          </div>
+        </label>
+        <p id="fetch-job-status" class="hint"></p>
+        <label class="field"><span>Job title</span><input type="text" id="add-job-title" required /></label>
+        <label class="field"><span>Company</span><input type="text" id="add-job-company" /></label>
+        <label class="field"><span>Location</span><input type="text" id="add-job-location" /></label>
+        <label class="field"><span>Job description / posting text</span>
+          <textarea id="add-job-description" rows="6" placeholder="Paste it here if 'Fetch details' can't reach the page"></textarea>
+        </label>
+        <button type="button" id="fetch-wrong-btn" class="link-btn" hidden>Does that look wrong? Clear it and paste the title/description in yourself</button>
+        <button type="submit">Add to results below</button>
+      </form>
+    </details>
 
     <div id="score-bar" class="score-bar" hidden>
       <span>Check match against:</span>

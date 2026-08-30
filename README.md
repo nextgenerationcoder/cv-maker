@@ -112,6 +112,19 @@ Example:
 GET /api/jobs?search_term=software+engineer&location=Remote&site_name=indeed&site_name=linkedin
 ```
 
+### Add a job manually (boards that block search scraping)
+
+Below the search results, "+ Search didn't find it? Add a job from Indeed /
+Glassdoor / any URL or pasted text" opens the same manual-entry flow as the
+Tailored CVs page: paste a job URL and click "Fetch details" (calls
+`POST /api/tailoring/parse-job-url` — see [CV tailoring](#cv-tailoring) for
+how that parsing works) to auto-fill title/company/location/description, or
+just paste them in by hand. "Add to results below" appends it to the results
+list client-side (no backend call, no persistence yet) as an ordinary job
+card — same "Check match?" and "Tailor CV for this job" buttons as a
+scraped result, so a job from a board JobSpy can't search still gets the
+full match check.
+
 ### Frontend
 
 `frontend/index.html` is a minimal static page that calls the API and lists
@@ -333,8 +346,9 @@ existing items keep their ID unless their own text is edited.
 
 1. **Job Search** page: click "Tailor CV for this job" on a result — this
    saves the job and runs job analysis. For boards Job Search can't scrape
-   (Indeed/Glassdoor often block search requests from a VPS IP — see
-   below), use the **Tailored CVs** page instead: paste the listing's URL
+   (Indeed/Glassdoor often block search requests from a VPS IP), use the
+   "+ Search didn't find it?" manual-add section on that same page, or the
+   equivalent one on the **Tailored CVs** page: paste the listing's URL
    ("Fetch details" auto-fills title/company/location/description from
    the page's structured job data — works on most boards and ATSs, not
    just Indeed/Glassdoor) or just paste the text by hand.
