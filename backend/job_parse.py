@@ -66,6 +66,34 @@ def _html_to_text(html: str) -> str:
     return BeautifulSoup(html, "html.parser").get_text(separator="\n").strip()
 
 
+# Site-name suffixes some pages append to <title>/og:title (e.g. LinkedIn's
+# logged-out job pages: "Role at Company | LinkedIn") — strip them so the
+# title field isn't cluttered with the board's own branding.
+_TITLE_SUFFIX_RE = re.compile(
+    r"\s*[|\-–]\s*(LinkedIn|Indeed(\.com)?|Glassdoor|ZipRecruiter)\s*$", re.IGNORECASE
+)
+
+# When a site (confirmed: LinkedIn's logged-out/bot job pages) has no real
+# description in the HTML at all, its og:description often carries a
+# generic teaser instead — worse than no description, since it looks real
+# but isn't. Detected by a substring specific enough not to false-positive
+# on an actual job description.
+_JUNK_DESCRIPTION_MARKERS = ("similar jobs on linkedin",)
+
+
+def _clean_title(title: Optional[str]) -> Optional[str]:
+    if not title:
+        return title
+    return _TITLE_SUFFIX_RE.sub("", title).strip() or None
+
+
+def _is_junk_description(text: Optional[str]) -> bool:
+    if not text:
+        return False
+    lowered = text.lower()
+    return any(marker in lowered for marker in _JUNK_DESCRIPTION_MARKERS)
+
+
 # Known "full description" containers that some sites render separately
 # from (or instead of) their JSON-LD/Open Graph description, which is
 # often truncated or generic. Checked first when present since they're
@@ -124,11 +152,13 @@ def parse_job_url(url: str) -> dict:
         if not description:
             description_html = job.get("description") or ""
             description = _html_to_text(description_html) if description_html else ""
+        if _is_junk_description(description):
+            description = None
         return {
-            "title": _text(job.get("title")).strip() or None,
+            "title": _clean_title(_text(job.get("title")).strip() or None),
             "company": _text(job.get("hiringOrganization")).strip() or None,
             "location": _location_from_ld(job),
-            "description": description[:MAX_DESCRIPTION_CHARS] or None,
+            "description": (description[:MAX_DESCRIPTION_CHARS] if description else None) or None,
             "job_url": url,
         }
 
@@ -138,6 +168,7 @@ def parse_job_url(url: str) -> dict:
     title = (og_title["content"].strip() if og_title and og_title.get("content") else None) or (
         soup.title.string.strip() if soup.title and soup.title.string else None
     )
+    title = _clean_title(title)
     description = full_description
     if not description:
         if og_desc and og_desc.get("content"):
@@ -148,11 +179,15 @@ def parse_job_url(url: str) -> dict:
             description = body_text[:MAX_DESCRIPTION_CHARS] or None
     else:
         description = description[:MAX_DESCRIPTION_CHARS]
+    if _is_junk_description(description):
+        description = None
 
     if not title and not description:
         raise ValueError(
-            "Couldn't find any job details on that page — paste the title and "
-            "description in manually instead."
+            "Couldn't find any job details on that page — this page likely "
+            "requires being logged in or loads content with JavaScript, "
+            "which this can't do. Paste the title and description in "
+            "manually instead."
         )
 
     return {"title": title, "company": None, "location": None, "description": description, "job_url": url}

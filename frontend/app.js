@@ -503,7 +503,9 @@ fetchJobUrlBtn.addEventListener("click", async () => {
     if (data.company) document.getElementById("add-job-company").value = data.company;
     if (data.location) document.getElementById("add-job-location").value = data.location;
     if (data.description) document.getElementById("add-job-description").value = data.description;
-    fetchJobStatusEl.textContent = "Filled in below — review and edit before adding.";
+    fetchJobStatusEl.textContent = data.description
+      ? "Filled in below — review and edit before adding."
+      : "Got the title, but not the description — this page likely needs a login or loads content with JavaScript. Paste the description in yourself below.";
     fetchWrongBtn.hidden = false;
   } catch (err) {
     fetchJobStatusEl.textContent = `${err.message}`;
