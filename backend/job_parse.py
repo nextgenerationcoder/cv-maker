@@ -66,6 +66,27 @@ def _html_to_text(html: str) -> str:
     return BeautifulSoup(html, "html.parser").get_text(separator="\n").strip()
 
 
+# Known "full description" containers that some sites render separately
+# from (or instead of) their JSON-LD/Open Graph description, which is
+# often truncated or generic. Checked first when present since they're
+# more reliable than the metadata fallbacks below.
+FULL_DESCRIPTION_SELECTORS = [
+    # LinkedIn's public job pages ("About the job") — same class JobSpy's
+    # own bundled LinkedIn scraper targets (jobspy/linkedin/__init__.py).
+    {"name": "div", "class_": lambda c: c and "show-more-less-html__markup" in c},
+]
+
+
+def _find_full_description(soup: BeautifulSoup) -> Optional[str]:
+    for selector in FULL_DESCRIPTION_SELECTORS:
+        tag = soup.find(**selector)
+        if tag:
+            text = tag.get_text(separator="\n").strip()
+            if text:
+                return text
+    return None
+
+
 def _location_from_ld(job: dict) -> Optional[str]:
     loc = job.get("jobLocation")
     if isinstance(loc, list):
@@ -95,11 +116,14 @@ def parse_job_url(url: str) -> dict:
         )
 
     soup = BeautifulSoup(response.text, "html.parser")
+    full_description = _find_full_description(soup)
     job = _find_job_posting_ld(soup)
 
     if job:
-        description_html = job.get("description") or ""
-        description = _html_to_text(description_html) if description_html else ""
+        description = full_description
+        if not description:
+            description_html = job.get("description") or ""
+            description = _html_to_text(description_html) if description_html else ""
         return {
             "title": _text(job.get("title")).strip() or None,
             "company": _text(job.get("hiringOrganization")).strip() or None,
@@ -114,13 +138,16 @@ def parse_job_url(url: str) -> dict:
     title = (og_title["content"].strip() if og_title and og_title.get("content") else None) or (
         soup.title.string.strip() if soup.title and soup.title.string else None
     )
-    description = None
-    if og_desc and og_desc.get("content"):
-        description = og_desc["content"].strip()
+    description = full_description
+    if not description:
+        if og_desc and og_desc.get("content"):
+            description = og_desc["content"].strip()
+        else:
+            body_text = soup.get_text(separator="\n")
+            body_text = re.sub(r"\n{2,}", "\n", body_text).strip()
+            description = body_text[:MAX_DESCRIPTION_CHARS] or None
     else:
-        body_text = soup.get_text(separator="\n")
-        body_text = re.sub(r"\n{2,}", "\n", body_text).strip()
-        description = body_text[:MAX_DESCRIPTION_CHARS] or None
+        description = description[:MAX_DESCRIPTION_CHARS]
 
     if not title and not description:
         raise ValueError(
