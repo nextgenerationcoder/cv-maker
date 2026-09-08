@@ -56,7 +56,13 @@ def _load_existing(output_path: str) -> tuple[set[str], int, int]:
     for line in path.read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
-        row = json.loads(line)
+        # A prior run killed mid-write (container restart, crash) can
+        # leave a truncated last line - skip it rather than crash the
+        # whole run on startup.
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError:
+            continue
         url = row.get("job_url")
         if url:
             seen_urls.add(url)
