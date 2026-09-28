@@ -37,6 +37,14 @@ class UpdateTailoredCvRequest(BaseModel):
     cv: TailoredCV
 
 
+class UpdateJobStatusRequest(BaseModel):
+    status: str
+
+
+class UpdateJobNotesRequest(BaseModel):
+    notes: Optional[str] = None
+
+
 def _require_cv(cv_id: str, user_id: str) -> dict:
     record = cv_store.fetch_cv(cv_id, user_id)
     if record is None:
@@ -85,6 +93,29 @@ def create_job(body: CreateJobRequest, current_user: dict = Depends(get_current_
 @router.get("/jobs")
 def list_jobs(current_user: dict = Depends(get_current_user)):
     return {"jobs": tailoring_store.list_jobs(current_user["id"])}
+
+
+@router.get("/board")
+def get_board(current_user: dict = Depends(get_current_user)):
+    return {"columns": tailoring_store.BOARD_STATUSES, "jobs": tailoring_store.list_board(current_user["id"])}
+
+
+@router.patch("/jobs/{job_id}/status")
+def update_job_status(job_id: str, body: UpdateJobStatusRequest, current_user: dict = Depends(get_current_user)):
+    if body.status not in tailoring_store.BOARD_STATUSES:
+        raise HTTPException(status_code=422, detail=f"status must be one of {tailoring_store.BOARD_STATUSES}")
+    job = tailoring_store.set_job_status(job_id, current_user["id"], body.status)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    return job
+
+
+@router.patch("/jobs/{job_id}/notes")
+def update_job_notes(job_id: str, body: UpdateJobNotesRequest, current_user: dict = Depends(get_current_user)):
+    job = tailoring_store.set_job_notes(job_id, current_user["id"], body.notes)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    return job
 
 
 @router.get("/jobs/{job_id}")

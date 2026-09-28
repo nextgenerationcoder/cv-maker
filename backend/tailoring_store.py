@@ -8,6 +8,17 @@ from typing import Optional
 DB_PATH = os.environ.get("CV_DB_PATH", "cv_profiles.db")
 
 
+BOARD_STATUSES = (
+    "positions",
+    "cv_made",
+    "sop_and_cv_made",
+    "applied",
+    "interview",
+    "rejected",
+    "ignored",
+)
+
+
 def _connect() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
     conn.execute(
@@ -28,6 +39,14 @@ def _connect() -> sqlite3.Connection:
         )
         """
     )
+    for statement in (
+        "ALTER TABLE tailoring_jobs ADD COLUMN status TEXT NOT NULL DEFAULT 'positions'",
+        "ALTER TABLE tailoring_jobs ADD COLUMN board_notes TEXT",
+    ):
+        try:
+            conn.execute(statement)
+        except sqlite3.OperationalError:
+            pass
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS resume_matches (
@@ -117,7 +136,8 @@ def fetch_job(job_id: str, user_id: str) -> Optional[dict]:
     try:
         row = conn.execute(
             "SELECT id, user_id, cv_id, title, company, location, description, job_url, job_type, "
-            "job_analysis, created_at, updated_at FROM tailoring_jobs WHERE id = ? AND user_id = ?",
+            "job_analysis, created_at, updated_at, status, board_notes FROM tailoring_jobs "
+            "WHERE id = ? AND user_id = ?",
             (job_id, user_id),
         ).fetchone()
     finally:
@@ -137,6 +157,8 @@ def fetch_job(job_id: str, user_id: str) -> Optional[dict]:
         "job_analysis": json.loads(row[9]) if row[9] else None,
         "created_at": row[10],
         "updated_at": row[11],
+        "status": row[12],
+        "board_notes": row[13],
     }
 
 
@@ -144,8 +166,8 @@ def list_jobs(user_id: str, limit: int = 50) -> list[dict]:
     conn = _connect()
     try:
         rows = conn.execute(
-            "SELECT id, title, company, location, job_url, job_analysis, created_at, updated_at "
-            "FROM tailoring_jobs WHERE user_id = ? ORDER BY updated_at DESC LIMIT ?",
+            "SELECT id, title, company, location, job_url, job_analysis, created_at, updated_at, "
+            "status, board_notes FROM tailoring_jobs WHERE user_id = ? ORDER BY updated_at DESC LIMIT ?",
             (user_id, limit),
         ).fetchall()
     finally:
@@ -160,9 +182,67 @@ def list_jobs(user_id: str, limit: int = 50) -> list[dict]:
             "has_analysis": r[5] is not None,
             "created_at": r[6],
             "updated_at": r[7],
+            "status": r[8],
+            "board_notes": r[9],
         }
         for r in rows
     ]
+
+
+def list_board(user_id: str) -> list[dict]:
+    conn = _connect()
+    try:
+        rows = conn.execute(
+            "SELECT tj.id, tj.title, tj.company, tj.location, tj.status, tj.board_notes, "
+            "tj.updated_at, EXISTS(SELECT 1 FROM tailored_cvs tc WHERE tc.job_id = tj.id) "
+            "FROM tailoring_jobs tj WHERE tj.user_id = ? ORDER BY tj.updated_at DESC",
+            (user_id,),
+        ).fetchall()
+    finally:
+        conn.close()
+    return [
+        {
+            "id": r[0],
+            "title": r[1],
+            "company": r[2],
+            "location": r[3],
+            "status": r[4],
+            "board_notes": r[5],
+            "updated_at": r[6],
+            "has_tailored_cv": bool(r[7]),
+        }
+        for r in rows
+    ]
+
+
+def set_job_status(job_id: str, user_id: str, status: str) -> Optional[dict]:
+    now = datetime.now(timezone.utc).isoformat()
+    conn = _connect()
+    try:
+        cur = conn.execute(
+            "UPDATE tailoring_jobs SET status = ?, updated_at = ? WHERE id = ? AND user_id = ?",
+            (status, now, job_id, user_id),
+        )
+        conn.commit()
+        updated = cur.rowcount > 0
+    finally:
+        conn.close()
+    return fetch_job(job_id, user_id) if updated else None
+
+
+def set_job_notes(job_id: str, user_id: str, notes: Optional[str]) -> Optional[dict]:
+    now = datetime.now(timezone.utc).isoformat()
+    conn = _connect()
+    try:
+        cur = conn.execute(
+            "UPDATE tailoring_jobs SET board_notes = ?, updated_at = ? WHERE id = ? AND user_id = ?",
+            (notes, now, job_id, user_id),
+        )
+        conn.commit()
+        updated = cur.rowcount > 0
+    finally:
+        conn.close()
+    return fetch_job(job_id, user_id) if updated else None
 
 
 def delete_job(job_id: str, user_id: str) -> bool:

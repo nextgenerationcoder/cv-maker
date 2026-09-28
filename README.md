@@ -398,3 +398,40 @@ existing items keep their ID unless their own text is edited.
 - `GET /tailored-cvs/{id}`, `PATCH /tailored-cvs/{id}` (body `{cv}`,
   edits presentation only), `POST /tailored-cvs/{id}/regenerate`,
   `GET /tailored-cvs/{id}/export.json`.
+
+## Job board (kanban)
+
+A `frontend/board.html` page tracks every saved job (the same
+`tailoring_jobs` rows used by [CV tailoring](#cv-tailoring)) through a
+pipeline of seven stages: **Positions → CV made → SOP and CV made →
+Applied → Interview → Rejected → Ignored**. Every job starts in
+`positions` when it's saved from Job Search or the Tailored CVs page;
+moving it through the rest of the pipeline is manual (dragging a card,
+or the `← previous` / `next →` buttons on each card for
+touch/keyboard use — plain HTML5 drag-and-drop, no library).
+
+Each card shows title, company/location, last-updated date, a "Tailored
+CV ready" badge when at least one tailored CV exists for that job
+(`EXISTS(...)` against `tailored_cvs` in the same query, no extra
+round-trip), a link back to `job-detail.html` for that job, and
+per-card free-text notes (e.g. "recruiter call 10/2", "waiting on
+referral") saved on blur. Column headers show a live count. Moves are
+optimistic (the card jumps immediately) and roll back with a reload if
+the PATCH fails.
+
+`status` and `board_notes` are plain columns added to the existing
+`tailoring_jobs` table via the same idempotent
+`ALTER TABLE ... ADD COLUMN` / `except sqlite3.OperationalError: pass`
+pattern used elsewhere in `tailoring_store.py`, so upgrading an existing
+deployment needs no manual migration — every pre-existing row defaults
+to `status = 'positions'`.
+
+### API (`/api/tailoring/*`, all require auth, all scoped to the caller)
+
+- `GET /board` — `{columns: [...7 status strings in pipeline order],
+  jobs: [{id, title, company, location, status, board_notes,
+  updated_at, has_tailored_cv}]}`.
+- `PATCH /jobs/{id}/status` — `{status}`, must be one of the 7 column
+  values (422 otherwise). Returns the full job record.
+- `PATCH /jobs/{id}/notes` — `{notes}` (nullable free text). Returns the
+  full job record.
