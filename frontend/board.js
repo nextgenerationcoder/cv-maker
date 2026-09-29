@@ -87,37 +87,38 @@ function buildCard(job) {
   badges.appendChild(updated);
   body.appendChild(badges);
 
-  const openLink = document.createElement("a");
-  openLink.href = `job-detail.html?job_id=${encodeURIComponent(job.id)}`;
-  openLink.textContent = "Open →";
-  openLink.className = "board-card-open";
-  body.appendChild(openLink);
-
   const moveRow = document.createElement("div");
   moveRow.className = "board-card-moves";
   const currentIndex = columns.indexOf(job.status);
   if (currentIndex > 0) {
     const prevBtn = document.createElement("button");
     prevBtn.type = "button";
-    prevBtn.className = "link-btn";
-    prevBtn.textContent = "← " + COLUMN_LABELS[columns[currentIndex - 1]];
+    prevBtn.className = "board-btn board-btn-move";
+    prevBtn.title = "Move to " + COLUMN_LABELS[columns[currentIndex - 1]];
+    prevBtn.innerHTML = `<span aria-hidden="true">←</span> ${COLUMN_LABELS[columns[currentIndex - 1]]}`;
     prevBtn.addEventListener("click", () => moveJob(job.id, columns[currentIndex - 1]));
     moveRow.appendChild(prevBtn);
+  } else {
+    moveRow.appendChild(document.createElement("span"));
   }
   if (currentIndex < columns.length - 1 && currentIndex >= 0) {
     const nextBtn = document.createElement("button");
     nextBtn.type = "button";
-    nextBtn.className = "link-btn";
-    nextBtn.textContent = COLUMN_LABELS[columns[currentIndex + 1]] + " →";
+    nextBtn.className = "board-btn board-btn-move";
+    nextBtn.title = "Move to " + COLUMN_LABELS[columns[currentIndex + 1]];
+    nextBtn.innerHTML = `${COLUMN_LABELS[columns[currentIndex + 1]]} <span aria-hidden="true">→</span>`;
     nextBtn.addEventListener("click", () => moveJob(job.id, columns[currentIndex + 1]));
     moveRow.appendChild(nextBtn);
   }
   body.appendChild(moveRow);
 
+  const actionRow = document.createElement("div");
+  actionRow.className = "board-card-actions";
+
   const notesToggle = document.createElement("button");
   notesToggle.type = "button";
-  notesToggle.className = "link-btn";
-  notesToggle.textContent = job.board_notes ? "Edit notes" : "+ Add notes";
+  notesToggle.className = "board-btn board-btn-ghost";
+  notesToggle.textContent = job.board_notes ? "📝 Notes" : "+ Notes";
   const notesArea = document.createElement("textarea");
   notesArea.className = "board-card-notes";
   notesArea.rows = 3;
@@ -129,7 +130,15 @@ function buildCard(job) {
     notesArea.hidden = !notesArea.hidden;
     if (!notesArea.hidden) notesArea.focus();
   });
-  body.appendChild(notesToggle);
+  actionRow.appendChild(notesToggle);
+
+  const openLink = document.createElement("a");
+  openLink.href = `job-detail.html?job_id=${encodeURIComponent(job.id)}`;
+  openLink.textContent = "Open";
+  openLink.className = "board-btn board-btn-primary";
+  actionRow.appendChild(openLink);
+
+  body.appendChild(actionRow);
   body.appendChild(notesArea);
 
   return card;
