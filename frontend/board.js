@@ -28,7 +28,9 @@ const boardStatusEl = document.getElementById("board-status");
 let columns = Object.keys(COLUMN_LABELS);
 let jobsByStatus = {};
 let draggedJobId = null;
+let cvOptions = [];
 const collapsedColumns = new Set();
+const addFormOpenFor = new Set();
 
 function formatDate(iso) {
   if (!iso) return "";
@@ -58,6 +60,18 @@ function buildCard(job) {
   idChip.className = "board-card-id";
   idChip.textContent = job.id.slice(0, 4).toUpperCase();
   bar.appendChild(idChip);
+
+  const removeBtn = document.createElement("button");
+  removeBtn.type = "button";
+  removeBtn.className = "board-card-remove";
+  removeBtn.setAttribute("aria-label", "Remove job");
+  removeBtn.title = "Remove from board";
+  removeBtn.textContent = "✕";
+  removeBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    removeJob(job.id, job.status);
+  });
+  bar.appendChild(removeBtn);
   card.appendChild(bar);
 
   const body = document.createElement("div");
@@ -144,6 +158,138 @@ function buildCard(job) {
   return card;
 }
 
+function buildAddForm(status) {
+  const form = document.createElement("form");
+  form.className = "board-add-form";
+
+  const titleInput = document.createElement("input");
+  titleInput.type = "text";
+  titleInput.placeholder = "Job title";
+  titleInput.required = true;
+  form.appendChild(titleInput);
+
+  const companyInput = document.createElement("input");
+  companyInput.type = "text";
+  companyInput.placeholder = "Company (optional)";
+  form.appendChild(companyInput);
+
+  const locationInput = document.createElement("input");
+  locationInput.type = "text";
+  locationInput.placeholder = "Location (optional)";
+  form.appendChild(locationInput);
+
+  const cvSelect = document.createElement("select");
+  if (!cvOptions.length) {
+    const opt = document.createElement("option");
+    opt.textContent = "No saved CV — add one on Upload CV first";
+    opt.disabled = true;
+    opt.selected = true;
+    cvSelect.appendChild(opt);
+    cvSelect.disabled = true;
+  } else {
+    for (const cv of cvOptions) {
+      const opt = document.createElement("option");
+      opt.value = cv.id;
+      opt.textContent = cv.filename;
+      cvSelect.appendChild(opt);
+    }
+  }
+  form.appendChild(cvSelect);
+
+  const statusEl = document.createElement("p");
+  statusEl.className = "hint board-add-form-status";
+  form.appendChild(statusEl);
+
+  const btnRow = document.createElement("div");
+  btnRow.className = "board-add-form-actions";
+  const saveBtn = document.createElement("button");
+  saveBtn.type = "submit";
+  saveBtn.className = "board-btn board-btn-primary";
+  saveBtn.textContent = "Add";
+  btnRow.appendChild(saveBtn);
+  const cancelBtn = document.createElement("button");
+  cancelBtn.type = "button";
+  cancelBtn.className = "board-btn";
+  cancelBtn.textContent = "Cancel";
+  cancelBtn.addEventListener("click", () => {
+    addFormOpenFor.delete(status);
+    renderBoard();
+  });
+  btnRow.appendChild(cancelBtn);
+  form.appendChild(btnRow);
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!cvSelect.value) {
+      statusEl.textContent = "Add a CV on the Upload CV page first.";
+      return;
+    }
+    saveBtn.disabled = true;
+    statusEl.textContent = "Adding…";
+    try {
+      await submitQuickAdd({
+        cv_id: cvSelect.value,
+        title: titleInput.value.trim(),
+        company: companyInput.value.trim() || null,
+        location: locationInput.value.trim() || null,
+        status,
+      });
+      addFormOpenFor.delete(status);
+      loadBoard();
+    } catch (err) {
+      statusEl.textContent = `Error: ${err.message}`;
+      saveBtn.disabled = false;
+    }
+  });
+
+  return form;
+}
+
+async function loadCvOptions() {
+  try {
+    const response = await authFetch(`${API_BASE}/api/cv?limit=50`);
+    if (!response.ok) return;
+    const data = await response.json();
+    cvOptions = data.cvs || [];
+  } catch {
+    // add-job forms just won't have options
+  }
+}
+
+async function submitQuickAdd(body) {
+  const response = await authFetch(`${API_BASE}/api/tailoring/board/jobs`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    throw new Error(errorBody.detail || `Request failed with ${response.status}`);
+  }
+  return response.json();
+}
+
+async function removeJob(jobId, status) {
+  if (!window.confirm("Remove this job from the board? This can't be undone.")) return;
+  const list = jobsByStatus[status] || [];
+  const idx = list.findIndex((j) => j.id === jobId);
+  const removed = idx !== -1 ? list.splice(idx, 1)[0] : null;
+  renderBoard();
+
+  try {
+    const response = await authFetch(`${API_BASE}/api/tailoring/jobs/${jobId}`, { method: "DELETE" });
+    if (!response.ok) throw new Error(`Request failed with ${response.status}`);
+  } catch (err) {
+    boardStatusEl.textContent = `Couldn't remove the job: ${err.message}. Reloading…`;
+    if (removed) {
+      list.splice(idx, 0, removed);
+      renderBoard();
+    } else {
+      loadBoard();
+    }
+  }
+}
+
 function renderBoard() {
   boardEl.innerHTML = "";
   for (const status of columns) {
@@ -179,6 +325,21 @@ function renderBoard() {
     count.className = "board-column-count";
     count.textContent = jobs.length;
     header.appendChild(count);
+
+    if (!collapsed) {
+      const addBtn = document.createElement("button");
+      addBtn.type = "button";
+      addBtn.className = "board-column-add";
+      addBtn.setAttribute("aria-label", `Add job to ${COLUMN_LABELS[status] || status}`);
+      addBtn.title = "Add a job here";
+      addBtn.textContent = "+";
+      addBtn.addEventListener("click", () => {
+        if (addFormOpenFor.has(status)) addFormOpenFor.delete(status);
+        else addFormOpenFor.add(status);
+        renderBoard();
+      });
+      header.appendChild(addBtn);
+    }
     column.appendChild(header);
 
     if (collapsed) {
@@ -192,6 +353,7 @@ function renderBoard() {
       });
       column.appendChild(collapsedLabel);
     } else {
+      if (addFormOpenFor.has(status)) column.appendChild(buildAddForm(status));
       const cardsWrap = document.createElement("div");
       cardsWrap.className = "board-column-cards";
       for (const job of jobs) cardsWrap.appendChild(buildCard(job));
@@ -285,4 +447,5 @@ async function saveNotes(jobId, notes) {
   }
 }
 
+loadCvOptions();
 loadBoard();

@@ -45,6 +45,14 @@ class UpdateJobNotesRequest(BaseModel):
     notes: Optional[str] = None
 
 
+class QuickAddJobRequest(BaseModel):
+    cv_id: str
+    title: str
+    company: Optional[str] = None
+    location: Optional[str] = None
+    status: Optional[str] = None
+
+
 def _require_cv(cv_id: str, user_id: str) -> dict:
     record = cv_store.fetch_cv(cv_id, user_id)
     if record is None:
@@ -98,6 +106,21 @@ def list_jobs(current_user: dict = Depends(get_current_user)):
 @router.get("/board")
 def get_board(current_user: dict = Depends(get_current_user)):
     return {"columns": tailoring_store.BOARD_STATUSES, "jobs": tailoring_store.list_board(current_user["id"])}
+
+
+@router.post("/board/jobs")
+def quick_add_board_job(body: QuickAddJobRequest, current_user: dict = Depends(get_current_user)):
+    _require_cv(body.cv_id, current_user["id"])
+    if body.status is not None and body.status not in tailoring_store.BOARD_STATUSES:
+        raise HTTPException(status_code=422, detail=f"status must be one of {tailoring_store.BOARD_STATUSES}")
+    job = tailoring_store.create_job(
+        current_user["id"],
+        body.cv_id,
+        {"title": body.title, "company": body.company, "location": body.location},
+    )
+    if body.status and body.status != "positions":
+        job = tailoring_store.set_job_status(job["id"], current_user["id"], body.status)
+    return job
 
 
 @router.patch("/jobs/{job_id}/status")

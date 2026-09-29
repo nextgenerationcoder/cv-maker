@@ -419,6 +419,16 @@ referral") saved on blur. Column headers show a live count. Moves are
 optimistic (the card jumps immediately) and roll back with a reload if
 the PATCH fails.
 
+Each column header also has a `+` that opens an inline add-a-card form
+(title, company, location, and which saved CV to attach it to) — this
+calls `POST /board/jobs`, which skips the AI job-analysis pipeline
+`POST /jobs` runs, since a board card you're tracking manually doesn't
+need (or may not yet have) a job description to analyze; run analysis
+later from `job-detail.html` once there's a real posting to tailor
+against. Every card also has a `✕` on its colored header bar that
+deletes it after a confirm prompt (same `DELETE /jobs/{id}` the
+Tailored CVs page uses).
+
 `status` and `board_notes` are plain columns added to the existing
 `tailoring_jobs` table via the same idempotent
 `ALTER TABLE ... ADD COLUMN` / `except sqlite3.OperationalError: pass`
@@ -435,3 +445,7 @@ to `status = 'positions'`.
   values (422 otherwise). Returns the full job record.
 - `PATCH /jobs/{id}/notes` — `{notes}` (nullable free text). Returns the
   full job record.
+- `POST /board/jobs` — `{cv_id, title, company?, location?, status?}` →
+  creates a job with no `job_analysis` (skips the AI pipeline) at the
+  given `status` (defaults to `positions`; 422 if `status` isn't one of
+  the 7 column values). Used by the board's per-column `+` form.
