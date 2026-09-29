@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CV Maker - Job Board</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="board-page">
+  <main class="container board-container">
+    <nav class="top-nav">
+      <a href="index.html">Job Search</a>
+      <a href="cv.html">Upload CV</a>
+      <a href="learning.html">Skills to Learn</a>
+      <a href="jobs.html">Tailored CVs</a>
+      <a href="board.html" class="active">Board</a>
+      <a href="settings.html">Settings</a>
+      <span id="account-bar" class="account-bar"></span>
+    </nav>
+    <h1>Job Board</h1>
+    <p class="hint">
+      Drag a card to move it through your pipeline, or use the arrow buttons
+      on smaller screens. Click a card to open the job and its tailored CVs.
+    </p>
+    <p id="board-status" class="hint"></p>
+    <div id="board" class="board"></div>
+  </main>
+  <script src="auth.js"></script>
+  <script>if (!requireAuth()) document.querySelector("main").hidden = true;</script>
+  <script src="board.js"></script>
+</body>
+</html>
