@@ -878,6 +878,7 @@ body.board-page {
   flex: 0 0 240px;
   background: #f7f7f8;
   border: 1px solid #e2e2e2;
+  border-top: 3px solid var(--accent, #9ca3af);
   border-radius: 8px;
   padding: 0.5rem;
   display: flex;
@@ -890,16 +891,42 @@ body.board-page {
   border-color: #93c5fd;
 }
 
+.board-column.collapsed {
+  flex: 0 0 44px;
+  align-items: center;
+}
+
 .board-column-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 0.35rem;
   padding: 0.25rem 0.25rem 0.5rem;
+  width: 100%;
+}
+
+.board-column.collapsed .board-column-header {
+  flex-direction: column;
+  padding: 0.25rem 0;
+}
+
+.board-column-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #888;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0.15rem;
 }
 
 .board-column-header h3 {
   margin: 0;
   font-size: 0.9rem;
+  flex: 1;
+}
+
+.board-column.collapsed .board-column-header h3 {
+  display: none;
 }
 
 .board-column-count {
@@ -908,6 +935,19 @@ body.board-page {
   background: #eee;
   border-radius: 999px;
   padding: 0.05rem 0.5rem;
+}
+
+.board-column-collapsed-label {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #555;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 0.5rem 0;
 }
 
 .board-column-cards {
@@ -921,12 +961,28 @@ body.board-page {
   background: #fff;
   border: 1px solid #ddd;
   border-radius: 6px;
-  padding: 0.6rem 0.7rem;
+  overflow: hidden;
   cursor: grab;
 }
 
 .board-card.dragging {
   opacity: 0.5;
+}
+
+.board-card-bar {
+  background: var(--accent, #9ca3af);
+  padding: 0.2rem 0.5rem;
+}
+
+.board-card-id {
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.board-card-body {
+  padding: 0.5rem 0.7rem 0.6rem;
 }
 
 .board-card h4 {

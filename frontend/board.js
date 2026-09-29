@@ -10,12 +10,25 @@ const COLUMN_LABELS = {
   ignored: "Ignored",
 };
 
+// Matches each stage to an accent color used on the column's top bar and
+// its cards, so status is readable at a glance without reading the label.
+const COLUMN_COLORS = {
+  positions: "#9ca3af",
+  cv_made: "#0891b2",
+  sop_and_cv_made: "#7c3aed",
+  applied: "#d97706",
+  interview: "#2563eb",
+  rejected: "#dc2626",
+  ignored: "#6b7280",
+};
+
 const boardEl = document.getElementById("board");
 const boardStatusEl = document.getElementById("board-status");
 
 let columns = Object.keys(COLUMN_LABELS);
 let jobsByStatus = {};
 let draggedJobId = null;
+const collapsedColumns = new Set();
 
 function formatDate(iso) {
   if (!iso) return "";
@@ -31,6 +44,7 @@ function buildCard(job) {
   card.className = "board-card";
   card.draggable = true;
   card.dataset.jobId = job.id;
+  card.style.setProperty("--accent", COLUMN_COLORS[job.status] || "#9ca3af");
 
   card.addEventListener("dragstart", () => {
     draggedJobId = job.id;
@@ -38,14 +52,26 @@ function buildCard(job) {
   });
   card.addEventListener("dragend", () => card.classList.remove("dragging"));
 
+  const bar = document.createElement("div");
+  bar.className = "board-card-bar";
+  const idChip = document.createElement("span");
+  idChip.className = "board-card-id";
+  idChip.textContent = job.id.slice(0, 4).toUpperCase();
+  bar.appendChild(idChip);
+  card.appendChild(bar);
+
+  const body = document.createElement("div");
+  body.className = "board-card-body";
+  card.appendChild(body);
+
   const title = document.createElement("h4");
   title.textContent = job.title;
-  card.appendChild(title);
+  body.appendChild(title);
 
   const meta = document.createElement("p");
   meta.className = "meta";
   meta.textContent = [job.company, job.location].filter(Boolean).join(" — ") || "No company/location";
-  card.appendChild(meta);
+  body.appendChild(meta);
 
   const badges = document.createElement("div");
   badges.className = "board-card-badges";
@@ -59,13 +85,13 @@ function buildCard(job) {
   updated.className = "board-card-date";
   updated.textContent = formatDate(job.updated_at);
   badges.appendChild(updated);
-  card.appendChild(badges);
+  body.appendChild(badges);
 
   const openLink = document.createElement("a");
   openLink.href = `job-detail.html?job_id=${encodeURIComponent(job.id)}`;
   openLink.textContent = "Open →";
   openLink.className = "board-card-open";
-  card.appendChild(openLink);
+  body.appendChild(openLink);
 
   const moveRow = document.createElement("div");
   moveRow.className = "board-card-moves";
@@ -86,7 +112,7 @@ function buildCard(job) {
     nextBtn.addEventListener("click", () => moveJob(job.id, columns[currentIndex + 1]));
     moveRow.appendChild(nextBtn);
   }
-  card.appendChild(moveRow);
+  body.appendChild(moveRow);
 
   const notesToggle = document.createElement("button");
   notesToggle.type = "button";
@@ -103,8 +129,8 @@ function buildCard(job) {
     notesArea.hidden = !notesArea.hidden;
     if (!notesArea.hidden) notesArea.focus();
   });
-  card.appendChild(notesToggle);
-  card.appendChild(notesArea);
+  body.appendChild(notesToggle);
+  body.appendChild(notesArea);
 
   return card;
 }
@@ -112,26 +138,56 @@ function buildCard(job) {
 function renderBoard() {
   boardEl.innerHTML = "";
   for (const status of columns) {
+    const jobs = jobsByStatus[status] || [];
+    const collapsed = collapsedColumns.has(status);
+    const accent = COLUMN_COLORS[status] || "#9ca3af";
+
     const column = document.createElement("section");
-    column.className = "board-column";
+    column.className = "board-column" + (collapsed ? " collapsed" : "");
     column.dataset.status = status;
+    column.style.setProperty("--accent", accent);
 
     const header = document.createElement("div");
     header.className = "board-column-header";
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "board-column-toggle";
+    toggle.setAttribute("aria-label", collapsed ? "Expand column" : "Collapse column");
+    toggle.textContent = collapsed ? "›" : "⌄";
+    toggle.addEventListener("click", () => {
+      if (collapsed) collapsedColumns.delete(status);
+      else collapsedColumns.add(status);
+      renderBoard();
+    });
+    header.appendChild(toggle);
+
     const heading = document.createElement("h3");
     heading.textContent = COLUMN_LABELS[status] || status;
     header.appendChild(heading);
+
     const count = document.createElement("span");
     count.className = "board-column-count";
-    const jobs = jobsByStatus[status] || [];
     count.textContent = jobs.length;
     header.appendChild(count);
     column.appendChild(header);
 
-    const cardsWrap = document.createElement("div");
-    cardsWrap.className = "board-column-cards";
-    for (const job of jobs) cardsWrap.appendChild(buildCard(job));
-    column.appendChild(cardsWrap);
+    if (collapsed) {
+      const collapsedLabel = document.createElement("button");
+      collapsedLabel.type = "button";
+      collapsedLabel.className = "board-column-collapsed-label";
+      collapsedLabel.textContent = `${COLUMN_LABELS[status] || status} (${jobs.length})`;
+      collapsedLabel.addEventListener("click", () => {
+        collapsedColumns.delete(status);
+        renderBoard();
+      });
+      column.appendChild(collapsedLabel);
+    } else {
+      const cardsWrap = document.createElement("div");
+      cardsWrap.className = "board-column-cards";
+      for (const job of jobs) cardsWrap.appendChild(buildCard(job));
+      column.appendChild(cardsWrap);
+    }
 
     column.addEventListener("dragover", (event) => {
       event.preventDefault();
